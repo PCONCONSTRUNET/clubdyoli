@@ -1,6 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.font-montserrat { font-family: 'Montserrat', sans-serif; }
+
+.tattoo-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='60' viewBox='0 0 120 60'%3E%3Cg fill='none' stroke='rgba(194, 24, 91, 0.4)' stroke-width='1.5' stroke-linejoin='round'%3E%3C!-- Coracao --%3E%3Cpath d='M20 15 a 5 5 0 0 0 -10 0 c 0 6 5 9 5 15 c 0 -6 5 -9 5 -15 z' /%3E%3C!-- Estrela --%3E%3Cpath d='M55 15 l2 5 l5 0 l-4 3 l2 5 l-5 -4 l-5 4 l2 -5 l-4 -3 l5 0 z' /%3E%3C!-- Diamante --%3E%3Cpath d='M90 15 l5 -5 l5 5 l-5 8 z' /%3E%3Cline x1='90' y1='15' x2='100' y2='15' /%3E%3C!-- Coroa --%3E%3Cpath d='M35 45 l3 -8 l3 4 l3 -4 l3 8 z' /%3E%3C!-- Coracao Pequeno --%3E%3Cpath d='M75 45 a 4 4 0 0 0 -8 0 c 0 5 4 7 4 12 c 0 -5 4 -7 4 -12 z' /%3E%3C/g%3E%3C/svg%3E");
+  background-size: 120px 60px;
+  background-position: center;
+}
 
 :root {
   --dyoli-pink: #d98baa;
@@ -49,4 +59,39 @@ a {
   padding: 14px 22px;
   font-weight: 800;
   border: 1px solid rgba(141, 70, 102, 0.18);
+}
+
+.responsive-bg {
+  background-image: url('/club_fundo.png');
+}
+
+@media (min-width: 768px) {
+  .responsive-bg {
+    background-image: url('/club_pc.png');
+  }
+}
+
+.dyoli-input {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 105, 180, 0.4);
+  background: rgba(255, 255, 255, 0.7);
+  color: #111;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.dyoli-input::placeholder {
+  color: #555;
+  font-weight: 700;
+}
+
+.dyoli-input:focus {
+  border-color: #ff1493;
+  box-shadow: 0 0 0 2px rgba(255, 20, 147, 0.2);
+  background: rgba(255, 255, 255, 0.9);
 }
