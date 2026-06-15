@@ -67,7 +67,7 @@ a {
 
 @media (min-width: 768px) {
   .responsive-bg {
-    background-image: url('/club_pc.png');
+    background-image: url('/fundo_pc.png');
   }
 }
 

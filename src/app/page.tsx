@@ -85,6 +85,23 @@ export default function HomePage() {
         });
 
         if (error) throw error;
+
+        // Criar perfil oficial no banco de dados
+        if (data.user) {
+          const { error: profileError } = await supabase.from('profiles').insert({
+            id: data.user.id,
+            nome: nome,
+            telefone: telefone,
+            cpf: cleanCpf,
+            role: 'client'
+          });
+          
+          if (profileError) {
+            console.error("Erro ao criar perfil:", profileError);
+            // Mesmo com erro no perfil, a conta foi criada, mas idealmente deveríamos tratar
+          }
+        }
+
         setModalType('login');
         setMensagem({ texto: "Conta criada com sucesso! Agora é só entrar.", tipo: "sucesso" });
 

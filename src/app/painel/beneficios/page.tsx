@@ -20,7 +20,7 @@ export default function BeneficiosPage() {
       </div>
 
       <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[32px] border border-white/60 shadow-[0_15px_40px_rgba(255,105,180,0.1)]">
-        <h2 className="text-xl font-bold text-[#ff1493] mb-4">Bem-vinda ao seu plano R$54,90/mês</h2>
+        <h2 className="text-xl font-bold text-[#ff1493] mb-4">Bem-vinda aos benefícios do seu Club de Créditos</h2>
         
         <ul className="space-y-4">
           <li className="flex gap-3">
