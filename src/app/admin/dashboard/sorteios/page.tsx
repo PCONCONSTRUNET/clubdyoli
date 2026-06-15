@@ -392,9 +392,9 @@ export default function AdminSorteiosPage() {
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl my-auto max-h-[90vh] flex flex-col">
-            <div className="p-6 sm:p-8 border-b border-gray-100 flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-2xl m-auto flex flex-col animate-in zoom-in-95 my-4 sm:my-8">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-[32px]">
               <div>
                 <h2 className="text-2xl font-black text-gray-900">{isEditing ? 'Editar Sorteio' : 'Novo Sorteio'}</h2>
                 <p className="text-gray-500 text-sm mt-1">Configure os detalhes do sorteio e o prêmio.</p>

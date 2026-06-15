@@ -335,9 +335,9 @@ export default function AdminCuponsPage() {
 
       {/* Modal - Novo Cupom */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md my-auto flex flex-col animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md m-auto flex flex-col animate-in zoom-in-95 my-4 sm:my-8">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-[32px]">
               <div>
                 <h2 className="text-xl font-black text-gray-900">{editId ? "Editar Cupom" : "Novo Cupom"}</h2>
               </div>
@@ -478,9 +478,9 @@ export default function AdminCuponsPage() {
 
       {/* Modal - Enviar Cupom */}
       {sendModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md my-auto flex flex-col animate-in zoom-in-95">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md m-auto flex flex-col animate-in zoom-in-95 my-4 sm:my-8">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10 rounded-t-[32px]">
               <div>
                 <h2 className="text-xl font-black text-gray-900">Enviar Cupom Manual</h2>
                 <p className="text-sm text-gray-500 mt-1">Envie um benefício exclusivo para um cliente.</p>
