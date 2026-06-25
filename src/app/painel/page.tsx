@@ -92,7 +92,7 @@ export default function PainelPage() {
         </div>
 
         {/* Carrossel de Banners */}
-        <div className="relative w-full rounded-[32px] overflow-hidden shadow-[0_15px_40px_rgba(255,105,180,0.15)] mb-10 group bg-gradient-to-br from-[#ffd9e8] to-[#f6d6e2]">
+        <div className="relative w-full shadow-[0_15px_40px_rgba(255,105,180,0.15)] mb-10 rounded-[32px]">
           
           <div 
             ref={scrollRef}
@@ -100,11 +100,10 @@ export default function PainelPage() {
             onMouseLeave={handleMouseLeave}
             onMouseUp={handleMouseUp}
             onMouseMove={handleMouseMove}
-            className={`flex overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [&::-webkit-scrollbar]:h-0 [-ms-overflow-style:none] [scrollbar-width:none] items-stretch ${isDown ? 'cursor-grabbing' : 'cursor-grab'}`}
+            className={`flex w-full overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isDown ? 'cursor-grabbing' : 'cursor-grab'}`}
           >
-            
-            {/* Slide 1: Banner Original */}
-            <div className="min-w-full snap-center relative bg-gradient-to-br from-[#ffd9e8] to-[#f6d6e2] p-8 min-h-[220px] flex items-center shrink-0">
+            {/* Slide 1: Banner principal com botão */}
+            <div className="w-full flex-shrink-0 snap-center relative bg-gradient-to-br from-[#ffd9e8] to-[#f6d6e2] p-8 min-h-[220px] flex items-center rounded-[32px] overflow-hidden">
               <div className="relative z-10 w-[70%]">
                 <span className="inline-block bg-white/80 backdrop-blur-md text-[#ff1493] text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full mb-3 uppercase tracking-widest shadow-sm">
                   Conheça Nossos Planos
@@ -113,67 +112,41 @@ export default function PainelPage() {
                   Faça parte do Club de Créditos
                 </h2>
                 <button 
-                  onClick={() => router.push('/painel/planos')}
+                  onClick={() => router.push('/painel/clubes')}
                   className="bg-[#ff4081] text-white px-5 sm:px-6 py-2 sm:py-3 rounded-full font-bold shadow-lg shadow-pink-500/30 hover:-translate-y-1 hover:bg-[#e91e63] transition-all duration-300 text-sm sm:text-base">
                   Ver planos disponíveis
                 </button>
               </div>
-
-              {/* Mascote Absolute Position */}
               <div className="absolute -bottom-4 -right-4 sm:right-0 w-[45%] h-[120%] max-w-[200px] pointer-events-none">
-                <img 
-                  src="/mascote_dyoli.png" 
-                  alt="Mascote VIP" 
-                  className="w-full h-full object-contain object-bottom drop-shadow-2xl pointer-events-none"
-                />
+                <img src="/mascote_dyoli.png" alt="Mascote VIP" className="w-full h-full object-contain object-bottom drop-shadow-2xl pointer-events-none" />
               </div>
             </div>
 
-            {/* Slide 2: Banner Imagens Customizadas (PC e Mobile) */}
-            <div 
-              className="min-w-full snap-center relative min-h-[220px] shrink-0 overflow-hidden" 
-              onClick={() => {
-                // Previne clique caso seja um arraste (drag)
-                if(!isDown) router.push('/painel/planos');
-              }}
+            {/* Slide 2: Clube Tattoo */}
+            <div
+              className="w-full flex-shrink-0 snap-center cursor-pointer overflow-hidden rounded-[32px]"
+              onClick={() => { if(!isDown) router.push('/painel/planos?clube=tattoo'); }}
             >
-              {/* Imagem para Computador */}
-              <img 
-                src="/club_pc.png" 
-                alt="Banner Club" 
-                className="hidden sm:block w-full h-full object-cover scale-[1.15] absolute inset-0 pointer-events-none" 
-              />
-              {/* Imagem para Celular */}
-              <img 
-                src="/creditos_mobile.png" 
-                alt="Banner Club Mobile" 
-                className="block sm:hidden w-full h-full object-cover scale-[1.15] absolute inset-0 pointer-events-none" 
-              />
+              <img src="/banner_clube_tattoo.png" alt="Clube Tattoo" className="w-full h-auto block pointer-events-none" />
             </div>
 
-            {/* Slide 3: Banner Sorteio (Mobile) */}
-            <div 
-              className="min-w-full snap-center relative min-h-[220px] shrink-0 overflow-hidden" 
-              onClick={() => {
-                if(!isDown) router.push('/painel/sorteios');
-              }}
+            {/* Slide 3: Club de Crédito */}
+            <div
+              className="w-full flex-shrink-0 snap-center cursor-pointer overflow-hidden rounded-[32px]"
+              onClick={() => { if(!isDown) router.push('/painel/planos?clube=credito'); }}
             >
-              <img 
-                src="/sorteio_mobile.png" 
-                alt="Banner Sorteio" 
-                className="w-full h-full object-cover scale-[1.05] absolute inset-0 pointer-events-none" 
-              />
+              <img src="/banner_clube_credito.png" alt="Club de Crédito" className="w-full h-auto block pointer-events-none" />
             </div>
-
           </div>
 
-          {/* Dica visual de arrastar (Paginadores) */}
+          {/* Paginador */}
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-20 pointer-events-none">
             <div className="w-8 h-1.5 rounded-full bg-white/80 shadow-sm"></div>
             <div className="w-2 h-1.5 rounded-full bg-white/40 shadow-sm"></div>
             <div className="w-2 h-1.5 rounded-full bg-white/40 shadow-sm"></div>
           </div>
         </div>
+
 
         {/* Cards Premium */}
         <div className="grid grid-cols-2 gap-4 sm:gap-6">

@@ -29,7 +29,7 @@ export default function AdminClientesPage() {
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select(`
-          id, nome, telefone, created_at, role, cpf,
+          id, nome, telefone, created_at, role, cpf, is_clube_tattoo, creditos_acumulados,
           assinaturas (status, plano_opcoes (valor, planos (nome))),
           pagamentos (id, valor, status, data_pagamento)
         `)
@@ -52,7 +52,9 @@ export default function AdminClientesPage() {
               valor: `R$ ${pag.valor}`,
               status: pag.status
             })) || [],
-            cupons: [] // Mock por enquanto
+            cupons: [], // Mock por enquanto
+            isClubeTattoo: p.is_clube_tattoo || false,
+            creditos: p.creditos_acumulados || 0
           };
         });
         setClientes(formatados);
@@ -144,7 +146,9 @@ export default function AdminClientesPage() {
                       {cliente.nome.charAt(0)}
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900">{cliente.nome}</h3>
+                      <h3 className="font-bold text-gray-900 flex items-center gap-1">
+                        {cliente.nome} {cliente.isClubeTattoo && <span title="Clube Tattoo">⭐</span>}
+                      </h3>
                       <p className="text-sm text-gray-500">{cliente.cpf}</p>
                     </div>
                   </div>
@@ -230,6 +234,29 @@ export default function AdminClientesPage() {
                 </div>
               )}
             </section>
+
+            {/* Clube Tattoo - Gerenciar Créditos */}
+            {selectedCliente.isClubeTattoo && (
+              <section>
+                <h3 className="text-sm font-bold text-[#ff1493] uppercase tracking-wider mb-4 flex items-center gap-2">
+                  ⭐ Clube Tattoo
+                </h3>
+                <div className="bg-pink-50 border border-pink-100 rounded-xl p-4 flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-gray-500 font-bold">Créditos Acumulados</p>
+                    <p className="text-xl font-black text-gray-900">R$ {Number(selectedCliente.creditos).toFixed(2).replace('.', ',')}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => alert('Abrir modal de adicionar/remover crédito (mock)')}
+                      className="text-xs font-bold bg-[#ff1493] text-white px-3 py-2 rounded-lg shadow-sm hover:bg-pink-600 transition-colors"
+                    >
+                      Gerenciar
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* Cupons */}
             <section>

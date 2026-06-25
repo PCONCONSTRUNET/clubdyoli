@@ -9,16 +9,30 @@ export default function PerfilPage() {
   const [nome, setNome] = useState("Carregando...");
   const [cpf, setCpf] = useState("Carregando...");
   const [telefone, setTelefone] = useState("Carregando...");
-  const [activeTab, setActiveTab] = useState("dados"); // 'dados', 'assinatura', 'historico'
+  const [activeTab, setActiveTab] = useState("dados"); // 'dados', 'assinatura', 'historico', 'clube'
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [creditos, setCreditos] = useState(0);
+  const [giros, setGiros] = useState(0);
+  const [isClubeTattoo, setIsClubeTattoo] = useState(false);
+  const [fidelidadeMeses, setFidelidadeMeses] = useState(0);
 
   useEffect(() => {
     const loadProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.user_metadata) {
-        setNome(session.user.user_metadata.nome || "Não informado");
-        setCpf(session.user.user_metadata.cpf || "Não informado");
-        setTelefone(session.user.user_metadata.telefone || "Não informado");
+      if (session?.user) {
+        if (session.user.user_metadata) {
+          setNome(session.user.user_metadata.nome || "Não informado");
+          setCpf(session.user.user_metadata.cpf || "Não informado");
+          setTelefone(session.user.user_metadata.telefone || "Não informado");
+        }
+        
+        // Fetch extended profile data
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        if (profile) {
+          setCreditos(profile.creditos_acumulados || 0);
+          setGiros(profile.giros_disponiveis || 0);
+          setIsClubeTattoo(profile.is_clube_tattoo || false);
+        }
       }
     };
     loadProfile();
@@ -109,6 +123,14 @@ export default function PerfilPage() {
         >
           <History size={16} /> Histórico
         </button>
+        {isClubeTattoo && (
+          <button 
+            onClick={() => setActiveTab("clube")}
+            className={`whitespace-nowrap px-5 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'clube' ? 'bg-[#ff1493] text-white shadow-md' : 'bg-white text-gray-500 border border-pink-100 hover:bg-pink-50'}`}
+          >
+            ⭐ Clube Tattoo
+          </button>
+        )}
       </div>
 
       <div className="bg-white/80 backdrop-blur-xl p-6 sm:p-8 rounded-[32px] border border-white/60 shadow-[0_15px_40px_rgba(255,105,180,0.1)]">
@@ -231,6 +253,37 @@ export default function PerfilPage() {
               </div>
             </div>
 
+          </div>
+        )}
+
+        {/* ABA: CLUBE TATTOO */}
+        {activeTab === "clube" && isClubeTattoo && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="bg-gradient-to-r from-pink-50 to-pink-100 border border-pink-200 rounded-2xl p-6">
+              <h3 className="text-2xl font-black text-[#ff1493] flex items-center gap-2 mb-4">
+                ⭐ Benefícios Exclusivos
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-pink-100">
+                  <span className="block text-xs font-bold text-gray-500 uppercase">Créditos Acumulados</span>
+                  <span className="block text-2xl font-black text-gray-800 mt-1">R$ {creditos.toFixed(2).replace('.', ',')}</span>
+                  <Link href="/painel/creditos" className="text-xs font-bold text-[#ff1493] hover:underline mt-2 inline-block">Ver histórico →</Link>
+                </div>
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-pink-100">
+                  <span className="block text-xs font-bold text-gray-500 uppercase">Giros Disponíveis</span>
+                  <span className="block text-2xl font-black text-gray-800 mt-1">{giros}</span>
+                  <Link href="/painel/giro" className="text-xs font-bold text-[#ff1493] hover:underline mt-2 inline-block">Tentar a sorte →</Link>
+                </div>
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-pink-100 col-span-2">
+                  <span className="block text-xs font-bold text-gray-500 uppercase">Fidelidade</span>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="block text-lg font-black text-gray-800">{fidelidadeMeses} meses consecutivos</span>
+                    <Link href="/painel/fidelidade" className="text-xs font-bold text-white bg-[#ff1493] px-3 py-1.5 rounded-full hover:bg-pink-600 transition-colors">Ver benefícios</Link>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
