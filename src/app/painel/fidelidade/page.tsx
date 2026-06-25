@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Award, CheckCircle2, Lock } from "lucide-react";
 import Link from "next/link";
-import { supabase } from "../../../../lib/supabase";
+import { supabase } from "../../../lib/supabase";
 
 export default function FidelidadePage() {
   const [fidelidadeMeses, setFidelidadeMeses] = useState(0);

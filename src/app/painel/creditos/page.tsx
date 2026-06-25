@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Coins, Clock, ArrowRightCircle } from "lucide-react";
 import Link from "next/link";
-import { supabase } from "../../../../lib/supabase";
+import { supabase } from "../../../lib/supabase";
 
 export default function MeusCreditosPage() {
   const [creditos, setCreditos] = useState(0);

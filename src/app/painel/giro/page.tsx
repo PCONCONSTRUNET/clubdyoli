@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Sparkles, Gift } from "lucide-react";
 import Link from "next/link";
-import { supabase } from "../../../../lib/supabase";
+import { supabase } from "../../../lib/supabase";
 
 const PRIZES = [
   { id: 1, name: "Produto do Estúdio", color: "#F9A8D4" }, // pink-300
