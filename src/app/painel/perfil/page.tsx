@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { User, ArrowLeft, CreditCard, History, Award, CheckCircle, Ticket, Gift } from "lucide-react";
+import { User, ArrowLeft, CreditCard, History, Award, CheckCircle, Ticket, Gift, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Wallet } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
 
@@ -15,8 +15,12 @@ export default function PerfilPage() {
   const [giros, setGiros] = useState(0);
   const [isClubeTattoo, setIsClubeTattoo] = useState(false);
   const [fidelidadeMeses, setFidelidadeMeses] = useState(0);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      setIsSidebarOpen(true);
+    }
     const loadProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
@@ -103,54 +107,188 @@ export default function PerfilPage() {
         </div>
       </div>
 
-      {/* Tabs de Navegação */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-4 scrollbar-hide">
-        <button 
-          onClick={() => setActiveTab("dados")}
-          className={`whitespace-nowrap px-5 py-2.5 rounded-full font-bold text-sm transition-all ${activeTab === 'dados' ? 'bg-[#ff1493] text-white shadow-md' : 'bg-white text-gray-500 border border-pink-100 hover:bg-pink-50'}`}
-        >
-          Meus Dados
-        </button>
-        <button 
-          onClick={() => setActiveTab("assinatura")}
-          className={`whitespace-nowrap px-5 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'assinatura' ? 'bg-[#ff1493] text-white shadow-md' : 'bg-white text-gray-500 border border-pink-100 hover:bg-pink-50'}`}
-        >
-          <CreditCard size={16} /> Assinatura
-        </button>
-        <button 
-          onClick={() => setActiveTab("historico")}
-          className={`whitespace-nowrap px-5 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'historico' ? 'bg-[#ff1493] text-white shadow-md' : 'bg-white text-gray-500 border border-pink-100 hover:bg-pink-50'}`}
-        >
-          <History size={16} /> Histórico
-        </button>
-        {isClubeTattoo && (
+      {/* Container Principal com Sidebar */}
+      <div className="flex flex-col md:flex-row gap-6 items-start relative">
+        
+        {/* Mobile Sidebar Overlay */}
+        <div 
+          className={`fixed inset-0 bg-black/40 z-40 transition-opacity md:hidden ${isSidebarOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}
+          onClick={() => setIsSidebarOpen(false)}
+        />
+
+        {/* Mobile Toggle Button (Fixed on left edge) */}
+        {!isSidebarOpen && (
           <button 
-            onClick={() => setActiveTab("clube")}
-            className={`whitespace-nowrap px-5 py-2.5 rounded-full font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'clube' ? 'bg-[#ff1493] text-white shadow-md' : 'bg-white text-gray-500 border border-pink-100 hover:bg-pink-50'}`}
+            onClick={() => setIsSidebarOpen(true)}
+            className="md:hidden fixed top-1/3 left-0 z-40 bg-white/90 backdrop-blur-sm border-y border-r border-pink-200 text-[#ff1493] py-4 pr-1.5 pl-0.5 rounded-r-xl shadow-[2px_4px_12px_rgba(255,20,147,0.15)] flex items-center justify-center transition-all opacity-70 hover:opacity-100 hover:pr-2.5"
           >
-            ⭐ Clube Tattoo
+            <ChevronRight size={18} strokeWidth={3} />
           </button>
         )}
-      </div>
 
-      <div className="bg-white/80 backdrop-blur-xl p-6 sm:p-8 rounded-[32px] border border-white/60 shadow-[0_15px_40px_rgba(255,105,180,0.1)]">
+        {/* Sidebar */}
+        <div 
+          className={`fixed md:relative top-0 left-0 h-full md:h-auto z-50 md:z-0 transition-all duration-300 ease-in-out flex-shrink-0 bg-white md:bg-transparent shadow-2xl md:shadow-none w-[280px] md:w-64
+            ${isSidebarOpen ? 'translate-x-0 md:opacity-100' : '-translate-x-full md:translate-x-0 md:w-0 md:opacity-0 md:overflow-hidden'}`}
+        >
+          {/* Mobile Sidebar Header */}
+          <div className="flex justify-between items-center p-6 md:hidden border-b border-pink-50 mb-4 bg-pink-50/50">
+            <h2 className="text-xl font-black text-gray-800 flex items-center gap-2"><User className="text-[#ff1493]"/> Menu</h2>
+            <button onClick={() => setIsSidebarOpen(false)} className="text-[#ff1493] bg-white p-2 rounded-full shadow-sm">
+              <ChevronLeft size={20} />
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-2 min-w-[250px] bg-transparent md:bg-white/40 md:backdrop-blur-md px-6 pb-6 md:p-4 rounded-3xl md:border md:border-pink-50 md:shadow-sm">
+            <button 
+              onClick={() => { setActiveTab("dados"); if (window.innerWidth < 768) setIsSidebarOpen(false); }}
+              className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeTab === 'dados' ? 'bg-[#ff1493] text-white shadow-md shadow-pink-500/20' : 'bg-white text-gray-500 hover:bg-pink-50 border border-transparent hover:border-pink-100'}`}
+            >
+              <User size={18} /> Meus Dados
+            </button>
+            <button 
+              onClick={() => { setActiveTab("assinatura"); if (window.innerWidth < 768) setIsSidebarOpen(false); }}
+              className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeTab === 'assinatura' ? 'bg-[#ff1493] text-white shadow-md shadow-pink-500/20' : 'bg-white text-gray-500 hover:bg-pink-50 border border-transparent hover:border-pink-100'}`}
+            >
+              <CreditCard size={18} /> Assinatura
+            </button>
+            <button 
+              onClick={() => { setActiveTab("carteira"); if (window.innerWidth < 768) setIsSidebarOpen(false); }}
+              className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeTab === 'carteira' ? 'bg-[#ff1493] text-white shadow-md shadow-pink-500/20' : 'bg-white text-gray-500 hover:bg-pink-50 border border-transparent hover:border-pink-100'}`}
+            >
+              <Wallet size={18} /> Minha Carteira
+            </button>
+            <button 
+              onClick={() => { setActiveTab("historico"); if (window.innerWidth < 768) setIsSidebarOpen(false); }}
+              className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeTab === 'historico' ? 'bg-[#ff1493] text-white shadow-md shadow-pink-500/20' : 'bg-white text-gray-500 hover:bg-pink-50 border border-transparent hover:border-pink-100'}`}
+            >
+              <History size={18} /> Histórico
+            </button>
+            {isClubeTattoo && (
+              <button 
+                onClick={() => { setActiveTab("clube"); if (window.innerWidth < 768) setIsSidebarOpen(false); }}
+                className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl font-bold text-sm transition-all ${activeTab === 'clube' ? 'bg-[#ff1493] text-white shadow-md shadow-pink-500/20' : 'bg-white text-gray-500 hover:bg-pink-50 border border-transparent hover:border-pink-100'}`}
+              >
+                <Award size={18} /> Clube Tattoo
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Content Wrapper */}
+        <div className="flex-1 w-full min-w-0 relative transition-all duration-300">
+          
+          {/* Desktop Toggle Arrow */}
+          <div className="hidden md:block absolute top-8 -left-4 z-20">
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="flex items-center justify-center w-8 h-8 bg-white border border-pink-200 shadow-md rounded-full text-[#ff1493] hover:bg-pink-50 hover:scale-110 transition-all"
+              title={isSidebarOpen ? "Ocultar Menu" : "Mostrar Menu"}
+            >
+              {isSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+            </button>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-xl p-6 sm:p-8 rounded-[32px] border border-white/60 shadow-[0_15px_40px_rgba(255,105,180,0.1)] min-h-[400px]">
         
-        {/* ABA: DADOS */}
+        {/* ABA: DADOS E CARTEIRA */}
         {activeTab === "dados" && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            <div>
-              <label className="block text-xs font-bold text-[#ff1493] uppercase tracking-wider mb-1">Nome Completo</label>
-              <div className="text-gray-800 font-medium text-lg bg-pink-50/50 p-3 rounded-xl border border-pink-100">{nome}</div>
+            
+            {/* Carteira Compacta no Topo */}
+            <div className="bg-pink-50/50 border border-pink-100 rounded-3xl p-6 flex flex-col items-center justify-center text-center shadow-sm">
+              <span className="bg-white p-3 rounded-full shadow-sm text-[#ff1493] mb-3">
+                <Wallet size={28} />
+              </span>
+              <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1">Crédito Acumulado</h3>
+              <p className="text-4xl font-black text-gray-900 mb-2">
+                R$ {creditos.toFixed(2).replace('.', ',')}
+              </p>
+              <p className="text-gray-500 text-[11px] max-w-[200px] leading-snug">
+                Seu saldo em haver, acumulado no período de assinatura, para usar no estúdio.
+              </p>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-[#ff1493] uppercase tracking-wider mb-1">CPF</label>
-              <div className="text-gray-800 font-medium text-lg bg-pink-50/50 p-3 rounded-xl border border-pink-100">{cpf}</div>
+            {/* Dados Pessoais Compactos */}
+            <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm">
+              <h4 className="font-bold text-gray-800 text-sm mb-4">Meus Dados</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                  <label className="block text-[10px] font-bold text-[#ff1493] uppercase tracking-wider mb-1">Nome Completo</label>
+                  <div className="text-gray-800 font-medium text-sm">{nome}</div>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                  <label className="block text-[10px] font-bold text-[#ff1493] uppercase tracking-wider mb-1">CPF</label>
+                  <div className="text-gray-800 font-medium text-sm">{cpf}</div>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-2xl border border-gray-100 sm:col-span-2">
+                  <label className="block text-[10px] font-bold text-[#ff1493] uppercase tracking-wider mb-1">Telefone / WhatsApp</label>
+                  <div className="text-gray-800 font-medium text-sm">{telefone}</div>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-[#ff1493] uppercase tracking-wider mb-1">Telefone / WhatsApp</label>
-              <div className="text-gray-800 font-medium text-lg bg-pink-50/50 p-3 rounded-xl border border-pink-100">{telefone}</div>
+          </div>
+        )}
+
+        {/* ABA: CARTEIRA COMPLETA */}
+        {activeTab === "carteira" && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {/* Valor Acumulado */}
+            <div className="bg-gradient-to-r from-pink-50 to-pink-100 border border-pink-200 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
+              <span className="bg-white p-4 rounded-full shadow-sm text-[#ff1493] mb-4">
+                <Wallet size={40} />
+              </span>
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2">Crédito Acumulado</h3>
+              <p className="text-5xl font-black text-gray-900 mb-2">
+                R$ {creditos.toFixed(2).replace('.', ',')}
+              </p>
+            </div>
+
+            {/* Explicação */}
+            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+               <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><CheckCircle size={18} className="text-[#ff1493]"/> Como usar sua carteira?</h4>
+               <ul className="text-sm text-gray-600 space-y-4">
+                 <li className="flex items-start gap-3">
+                   <span className="text-[#ff1493] font-black text-lg">•</span>
+                   <span><strong>Acúmulo automático:</strong> Todo o valor pago na sua mensalidade é revertido em créditos na sua carteira.</span>
+                 </li>
+                 <li className="flex items-start gap-3">
+                   <span className="text-[#ff1493] font-black text-lg">•</span>
+                   <span><strong>Utilização:</strong> Use seus créditos acumulados para abater o valor de tatuagens, piercings ou produtos físicos no estúdio.</span>
+                 </li>
+                 <li className="flex items-start gap-3">
+                   <span className="text-[#ff1493] font-black text-lg">•</span>
+                   <span><strong>Validade:</strong> Seus créditos não expiram desde que a sua assinatura permaneça ativa.</span>
+                 </li>
+               </ul>
+            </div>
+
+            {/* Transações (Histórico de onde vieram os créditos) */}
+            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+              <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><History size={18} className="text-[#ff1493]"/> Origem dos Créditos</h4>
+              <ul className="space-y-3">
+                <li className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-green-100 p-2 rounded-full text-green-600"><CheckCircle size={16}/></div>
+                    <div>
+                      <strong className="text-sm text-gray-700 block">Mensalidade Paga - VIP Dyoli</strong>
+                      <span className="text-xs text-gray-400">10 Jun 2026</span>
+                    </div>
+                  </div>
+                  <span className="font-bold text-green-600 text-sm">+ R$ 54,90</span>
+                </li>
+                <li className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-green-100 p-2 rounded-full text-green-600"><CheckCircle size={16}/></div>
+                    <div>
+                      <strong className="text-sm text-gray-700 block">Mensalidade Paga - VIP Dyoli</strong>
+                      <span className="text-xs text-gray-400">10 Mai 2026</span>
+                    </div>
+                  </div>
+                  <span className="font-bold text-green-600 text-sm">+ R$ 54,90</span>
+                </li>
+              </ul>
             </div>
           </div>
         )}
@@ -287,6 +425,8 @@ export default function PerfilPage() {
           </div>
         )}
 
+          </div>
+        </div>
       </div>
 
       {/* Modal de Gerenciar Pagamento */}

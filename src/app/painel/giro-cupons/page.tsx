@@ -1,35 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, Sparkles, Gift } from "lucide-react";
+import { ArrowLeft, Sparkles, Ticket } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
 
 const PRIZES = [
-  { id: 1, name: "Produto do Estúdio", color: "#F9A8D4" }, // pink-300
-  { id: 2, name: "R$10 Crédito", color: "#FBCFE8" },       // pink-200
-  { id: 3, name: "Sorteio Extra", color: "#FDF2F8" },      // pink-50
-  { id: 4, name: "R$20 Crédito", color: "#F9A8D4" },       // pink-300
-  { id: 5, name: "Giro Extra", color: "#FBCFE8" },         // pink-200
-  { id: 6, name: "Desconto Serviço", color: "#FDF2F8" },   // pink-50
+  { id: 1, name: "5% OFF", color: "#F9A8D4" }, // pink-300
+  { id: 2, name: "7% OFF", color: "#FBCFE8" }, // pink-200
+  { id: 3, name: "10% OFF", color: "#FDF2F8" }, // pink-50
+  { id: 4, name: "15% OFF", color: "#F9A8D4" }, // pink-300
+  { id: 5, name: "5% OFF", color: "#FBCFE8" }, // pink-200
+  { id: 6, name: "7% OFF", color: "#FDF2F8" }, // pink-50
+  { id: 7, name: "10% OFF", color: "#F9A8D4" }, // pink-300
+  { id: 8, name: "15% OFF", color: "#FBCFE8" }, // pink-200
 ];
 
-export default function GiroDaSortePage() {
-  const [girosDisponiveis, setGirosDisponiveis] = useState(0);
+export default function GiroCuponsPage() {
+  const [girosDisponiveis, setGirosDisponiveis] = useState(1); // MOCK para demonstração
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [prizeWon, setPrizeWon] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
-      
-      const { data: profile } = await supabase.from('profiles').select('giros_disponiveis').eq('id', session.user.id).single();
-      if (profile) setGirosDisponiveis(profile.giros_disponiveis || 0);
-    };
-    loadData();
-  }, []);
 
   const handleSpin = () => {
     if (girosDisponiveis <= 0 || isSpinning) return;
@@ -100,7 +91,7 @@ export default function GiroDaSortePage() {
     const playWinSound = () => {
       if (!audioCtx) return;
       try {
-        // Fanfarra de vitória com 3 notas em sequência
+        // Fanfarra de vitória com notas em sequência
         const notes = [
           { freq: 523.25, start: 0 },
           { freq: 659.25, start: 0.12 },
@@ -126,9 +117,12 @@ export default function GiroDaSortePage() {
     setIsSpinning(true);
     setPrizeWon(null);
 
+    // MOCK Backend prize calculation
     const targetPrizeIndex = Math.floor(Math.random() * PRIZES.length);
     const sliceAngle = 360 / PRIZES.length;
     const targetAngle = 360 - (targetPrizeIndex * sliceAngle);
+    
+    // 5 full spins + target angle
     const totalRotation = rotation + (360 * 5) + targetAngle - (rotation % 360);
     setRotation(totalRotation);
 
@@ -142,18 +136,18 @@ export default function GiroDaSortePage() {
 
   return (
     <main className="max-w-2xl mx-auto px-6 pt-12 pb-12 overflow-hidden">
-      <Link href="/painel/perfil" className="inline-flex items-center gap-2 text-[#ff1493] font-bold mb-6 hover:opacity-80 transition-opacity">
+      <Link href="/painel" className="inline-flex items-center gap-2 text-[#ff1493] font-bold mb-6 hover:opacity-80 transition-opacity">
         <ArrowLeft size={20} />
-        Voltar ao Perfil
+        Voltar ao Painel
       </Link>
       
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8">
         <div className="bg-gradient-to-br from-pink-100 to-pink-200 w-16 h-16 rounded-full flex items-center justify-center shadow-sm shrink-0">
-          <Sparkles className="text-[#ff1493]" size={28} />
+          <Ticket className="text-[#ff1493]" size={28} />
         </div>
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 leading-tight">Giro da Sorte</h1>
-          <p className="text-gray-500 font-medium">Você tem <strong className="text-[#ff1493]">{girosDisponiveis} giro(s)</strong> disponível(is).</p>
+          <h1 className="text-3xl font-extrabold text-gray-900 leading-tight">Roleta de Cupons</h1>
+          <p className="text-gray-500 font-medium">Gire para ganhar um desconto exclusivo no estúdio!</p>
         </div>
       </div>
 
@@ -178,8 +172,8 @@ export default function GiroDaSortePage() {
             <div 
               className="absolute inset-0" 
               style={{
-                background: `conic-gradient(${PRIZES.map((p, i) => `${p.color} ${i * 60}deg ${(i+1) * 60}deg`).join(', ')})`,
-                transform: 'rotate(-30deg)'
+                background: `conic-gradient(${PRIZES.map((p, i) => `${p.color} ${i * 45}deg ${(i+1) * 45}deg`).join(', ')})`,
+                transform: 'rotate(-22.5deg)'
               }}
             />
 
@@ -188,7 +182,7 @@ export default function GiroDaSortePage() {
               <div 
                 key={`line-${i}`}
                 className="absolute top-1/2 left-1/2 w-1/2 h-[2px] bg-white/40 origin-left -mt-[1px] z-0"
-                style={{ transform: `rotate(${i * 60 - 120}deg)` }}
+                style={{ transform: `rotate(${i * 45 - 112.5}deg)` }}
               />
             ))}
 
@@ -198,11 +192,11 @@ export default function GiroDaSortePage() {
                 key={prize.id}
                 className="absolute top-1/2 left-1/2 w-[45%] h-12 -mt-6 z-10 origin-left"
                 style={{
-                  transform: `rotate(${i * 60 - 90}deg)`,
+                  transform: `rotate(${i * 45 - 90}deg)`,
                 }}
               >
                 <div 
-                  className="absolute left-10 sm:left-12 top-1/2 -translate-y-1/2 font-bold text-pink-900 text-[10px] sm:text-[12px] text-left leading-tight w-[calc(100%-40px)]"
+                  className="absolute left-10 sm:left-12 top-1/2 -translate-y-1/2 font-black text-pink-900 text-lg sm:text-xl text-left leading-tight w-[calc(100%-40px)]"
                   style={{ textShadow: '0 1px 2px rgba(255,255,255,0.8)' }}
                 >
                   {prize.name}
@@ -223,11 +217,11 @@ export default function GiroDaSortePage() {
             disabled={isSpinning}
             className={`w-full max-w-xs bg-gradient-to-r from-[#ff1493] to-[#ff4081] text-white px-8 py-4 rounded-full font-bold shadow-lg shadow-pink-500/30 transition-all ${isSpinning ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 hover:shadow-pink-500/50'}`}
           >
-            {isSpinning ? "Girando..." : "Girar Agora"}
+            {isSpinning ? "Girando..." : "Girar Roleta"}
           </button>
         ) : (
           <div className="text-center p-4 bg-gray-50 rounded-xl border border-gray-100 w-full max-w-xs">
-            <p className="text-gray-500 font-bold">Você já utilizou seu giro deste mês.</p>
+            <p className="text-gray-500 font-bold">Você não tem giros de cupons disponíveis.</p>
           </div>
         )}
 
@@ -235,10 +229,13 @@ export default function GiroDaSortePage() {
 
       {prizeWon && (
         <div className="animate-in fade-in zoom-in slide-in-from-bottom-4 duration-500 bg-gradient-to-r from-pink-50 to-pink-100 border border-pink-200 p-6 rounded-2xl flex flex-col items-center text-center shadow-lg">
-          <Gift size={48} className="text-[#ff1493] mb-4" />
+          <Ticket size={48} className="text-[#ff1493] mb-4" />
           <h3 className="text-2xl font-black text-gray-900">Parabéns!</h3>
-          <p className="text-gray-700 mt-2">Você ganhou: <strong className="text-[#ff1493] text-xl block mt-1">{prizeWon}</strong></p>
-          <p className="text-xs text-gray-500 mt-4">O prêmio foi salvo no seu perfil.</p>
+          <p className="text-gray-700 mt-2">Você ganhou um cupom de: <strong className="text-[#ff1493] text-2xl block mt-1">{prizeWon}</strong></p>
+          <p className="text-xs text-gray-500 mt-4">O cupom foi adicionado à sua aba de Cupons.</p>
+          <Link href="/painel/cupons" className="mt-4 bg-white text-[#ff1493] font-bold px-6 py-2 rounded-full shadow-sm hover:bg-pink-50 transition-colors">
+            Ver meus cupons
+          </Link>
         </div>
       )}
     </main>
