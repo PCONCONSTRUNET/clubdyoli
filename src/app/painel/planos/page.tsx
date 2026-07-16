@@ -77,46 +77,44 @@ function PlanosContent() {
     const userId = session.user.id;
 
     try {
-      if (checkoutTipo === "tattoo") {
-        const res = await fetch('/api/assinaturas/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            checkoutTipo: "tattoo",
-            preco: plano.preco || "54,90"
-          })
-        });
+      const res = await fetch('/api/checkout/pagarme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          planoId: plano.id,
+          preco: plano.preco || "54,90",
+          nome_plano: plano.nome,
+          checkoutTipo: checkoutTipo,
+          cpf: dados.cpf,
+          nome: dados.nome,
+          email: dados.email,
+          telefone: dados.telefone,
+          metodoPagamento: dados.metodoPagamento,
+          numeroCartao: dados.numeroCartao,
+          nomeCartao: dados.nomeCartao,
+          validade: dados.validade,
+          cvv: dados.cvv
+        })
+      });
 
-        if (!res.ok) throw new Error("Falha ao atualizar perfil para tattoo");
+      const data = await res.json();
 
-        setPlanoSelecionado(null);
-        setCheckoutTipo(null);
-        alert("🌸 Clube Tattoo assinado! Bem-vinda!");
-        router.push('/painel/perfil');
+      if (!res.ok) throw new Error(data.error || "Falha ao processar pagamento");
+
+      setPlanoSelecionado(null);
+      setCheckoutTipo(null);
+
+      if (dados.metodoPagamento === 'pix' && data.data?.charges?.[0]?.last_transaction?.qr_code_url) {
+        // Redireciona para uma página de Sucesso/PIX ou mostra um alert simples com link
+        // Idealmente, a aplicação deveria ter uma tela de 'Aguardando PIX', mas por agora:
+        alert(`Pedido PIX gerado com sucesso! Acesse o link para pagar: ${data.data.charges[0].last_transaction.qr_code_url}`);
+        // O Webhook em background ativará o plano quando for pago.
       } else {
-        const res = await fetch('/api/assinaturas/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            planoId: plano.id,
-            checkoutTipo: "credito",
-            preco: plano.preco,
-            cupomPorcentagem: plano.cupom_porcentagem || 0,
-            cupomValidadeDias: plano.cupom_validade_dias || 30
-          })
-        });
-
-        if (!res.ok) throw new Error("Falha ao assinar plano");
-
-        const data = await res.json();
-        
-        setPlanoSelecionado(null);
-        setCheckoutTipo(null);
-        alert(`Sucesso! Seu plano foi ativado.`);
-        router.push('/painel/perfil');
+        alert(checkoutTipo === "tattoo" ? "🌸 Clube Tattoo assinado! Bem-vinda!" : "Sucesso! Seu plano foi ativado.");
       }
+      
+      router.push('/painel/perfil');
     } catch (err: any) {
       alert("Erro ao processar assinatura. Tente novamente.");
       setPlanoSelecionado(null);
