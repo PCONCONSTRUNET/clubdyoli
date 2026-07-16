@@ -166,7 +166,7 @@ export default function ParceriaPage() {
       alternateRowStyles: { fillColor: [249, 250, 251] },
     });
     
-    doc.save(`relatorio-parceria-${dataAtual.replace(/\\//g, '-')}.pdf`);
+    doc.save(`relatorio-parceria-${dataAtual.split('/').join('-')}.pdf`);
   };
 
   // format currency

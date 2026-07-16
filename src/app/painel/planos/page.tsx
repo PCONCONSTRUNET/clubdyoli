@@ -94,7 +94,7 @@ function PlanosContent() {
         setCheckoutTipo(null);
         alert("🌸 Clube Tattoo assinado! Bem-vinda!");
         router.push('/painel/perfil');
-
+      } else {
         const res = await fetch('/api/assinaturas/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -110,12 +110,14 @@ function PlanosContent() {
 
         if (!res.ok) throw new Error("Falha ao assinar plano");
 
+        const data = await res.json();
+        
         setPlanoSelecionado(null);
         setCheckoutTipo(null);
-        alert("✅ Plano assinado com sucesso!");
-        router.push('/painel/cupons');
+        alert(`Sucesso! Seu plano foi ativado.`);
+        router.push('/painel/perfil');
       }
-    } catch {
+    } catch (err: any) {
       alert("Erro ao processar assinatura. Tente novamente.");
       setPlanoSelecionado(null);
       setCheckoutTipo(null);
