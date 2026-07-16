@@ -8,6 +8,7 @@ import { ConfirmModal } from "../../../../components/ConfirmModal";
 
 export default function AdminSorteiosPage() {
   const [sorteios, setSorteios] = useState<any[]>([]);
+  const [planos, setPlanos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -21,6 +22,7 @@ export default function AdminSorteiosPage() {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
   const [status, setStatus] = useState("Ativo");
+  const [planoAlvoId, setPlanoAlvoId] = useState<string>("todos");
   
   // Image State
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -52,7 +54,13 @@ export default function AdminSorteiosPage() {
 
   useEffect(() => {
     fetchSorteios();
+    fetchPlanos();
   }, []);
+
+  const fetchPlanos = async () => {
+    const { data } = await supabase.from('planos').select('id, nome').eq('status', 'Ativo');
+    if (data) setPlanos(data);
+  };
 
   const fetchSorteios = async () => {
     setLoading(true);
@@ -86,6 +94,7 @@ export default function AdminSorteiosPage() {
       setDataFim(formatDT(end));
       setStatus(sorteio.status);
       setImagePreview(sorteio.imagem_url || "");
+      setPlanoAlvoId(sorteio.plano_alvo_id || "todos");
     } else {
       setIsEditing(false);
       setId("");
@@ -96,6 +105,7 @@ export default function AdminSorteiosPage() {
       setDataFim("");
       setStatus("Ativo");
       setImagePreview("");
+      setPlanoAlvoId("todos");
     }
     setImageFile(null);
     setModalOpen(true);
@@ -144,7 +154,8 @@ export default function AdminSorteiosPage() {
       data_inicio: new Date(dataInicio).toISOString(),
       data_fim: new Date(dataFim).toISOString(),
       status,
-      imagem_url: finalImageUrl
+      imagem_url: finalImageUrl,
+      plano_alvo_id: planoAlvoId === "todos" ? null : planoAlvoId
     };
 
     if (isEditing) {
@@ -201,10 +212,13 @@ export default function AdminSorteiosPage() {
 
     try {
       // 1. Pegar todos os assinantes ativos
-      const { data: assinaturas } = await supabase
-        .from('assinaturas')
-        .select('user_id')
-        .eq('status', 'Ativa');
+      // 1. Pegar todos os assinantes ativos do plano alvo ou de todos os planos
+      let query = supabase.from('assinaturas').select('user_id').eq('status', 'Ativa');
+      if (sorteio.plano_alvo_id) {
+        query = query.eq('plano_id', sorteio.plano_alvo_id);
+      }
+      
+      const { data: assinaturas } = await query;
       
       if (!assinaturas || assinaturas.length === 0) {
         setFeedback({ isOpen: true, type: 'error', title: 'Nenhum assinante', message: 'Nenhum assinante ativo encontrado para participar do sorteio.' });
@@ -331,6 +345,11 @@ export default function AdminSorteiosPage() {
                 <p className="text-gray-500 text-sm mb-4 line-clamp-2">{sorteio.descricao}</p>
                 
                 <div className="mt-auto space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500">Público:</span>
+                    <span className="font-bold text-indigo-500">{sorteio.plano_alvo_id ? planos.find(p => p.id === sorteio.plano_alvo_id)?.nome || 'Específico' : 'Todos os Planos'}</span>
+                  </div>
+                  
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Prêmio:</span>
                     <span className="font-bold text-[#ff1493]">{sorteio.premio}</span>
@@ -483,7 +502,7 @@ export default function AdminSorteiosPage() {
                   />
                 </div>
 
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-1">
                   <label className="block text-sm font-bold text-gray-700 mb-2">Status Inicial</label>
                   <select 
                     value={status}
@@ -492,6 +511,20 @@ export default function AdminSorteiosPage() {
                   >
                     <option value="Ativo">Ativo</option>
                     <option value="Pausado">Pausado</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-1">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Público Alvo</label>
+                  <select 
+                    value={planoAlvoId}
+                    onChange={e => setPlanoAlvoId(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-700 focus:outline-none focus:border-[#ff1493] focus:ring-1 focus:ring-[#ff1493] transition-colors"
+                  >
+                    <option value="todos">Todos os Planos</option>
+                    {planos.map(p => (
+                      <option key={p.id} value={p.id}>{p.nome}</option>
+                    ))}
                   </select>
                 </div>
               </div>

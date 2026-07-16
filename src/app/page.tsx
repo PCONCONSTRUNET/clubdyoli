@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
-export default function HomePage() {
+function HomeContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/painel';
   const [modalType, setModalType] = useState<"login" | "cadastro" | null>(null);
   const [cpf, setCpf] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -72,34 +74,22 @@ export default function HomePage() {
           return;
         }
 
-        const { data, error } = await supabase.auth.signUp({
-          email: emailFalso,
-          password: senha,
-          options: {
-            data: {
-              nome: nome,
-              telefone: telefone,
-              cpf: cleanCpf,
-            }
-          }
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: emailFalso,
+            password: senha,
+            nome,
+            telefone,
+            cpf: cleanCpf
+          })
         });
 
-        if (error) throw error;
-
-        // Criar perfil oficial no banco de dados
-        if (data.user) {
-          const { error: profileError } = await supabase.from('profiles').insert({
-            id: data.user.id,
-            nome: nome,
-            telefone: telefone,
-            cpf: cleanCpf,
-            role: 'client'
-          });
-          
-          if (profileError) {
-            console.error("Erro ao criar perfil:", profileError);
-            // Mesmo com erro no perfil, a conta foi criada, mas idealmente deveríamos tratar
-          }
+        const data = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(data.error || "Erro ao criar conta.");
         }
 
         setModalType('login');
@@ -113,11 +103,11 @@ export default function HomePage() {
 
         if (error) throw error;
         setMensagem({ texto: "Login realizado com sucesso! Redirecionando...", tipo: "sucesso" });
-        router.push('/painel');
+        router.push(redirectTo);
       }
     } catch (error: any) {
       let errorMsg = error.message;
-      if (errorMsg.includes("User already registered")) errorMsg = "CPF já cadastrado.";
+      if (errorMsg.includes("User already registered") || errorMsg.includes("já existe")) errorMsg = "CPF já cadastrado.";
       if (errorMsg.includes("Invalid login credentials")) errorMsg = "CPF ou senha incorretos.";
       setMensagem({ texto: errorMsg, tipo: "erro" });
     } finally {
@@ -271,5 +261,13 @@ export default function HomePage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }

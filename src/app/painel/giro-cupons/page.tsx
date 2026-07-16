@@ -17,10 +17,41 @@ const PRIZES = [
 ];
 
 export default function GiroCuponsPage() {
-  const [girosDisponiveis, setGirosDisponiveis] = useState(1); // MOCK para demonstração
+  const [girosDisponiveis, setGirosDisponiveis] = useState(0);
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [prizeWon, setPrizeWon] = useState<string | null>(null);
+  const [prizes, setPrizes] = useState<any[]>(PRIZES); // Fallback until loaded
+
+  useEffect(() => {
+    async function loadData() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const { data: profile } = await supabase.from('profiles').select('giros_disponiveis').eq('id', session.user.id).single();
+      if (profile) setGirosDisponiveis(profile.giros_disponiveis);
+
+      const { data: dbPrizes } = await supabase.from('premios_roleta').select('*').eq('ativo', true).order('peso', { ascending: false });
+      if (dbPrizes && dbPrizes.length > 0) {
+        // Map dbPrizes to visual prizes. We need at least 8 slices for the wheel to look good.
+        const mappedPrizes = dbPrizes.map((p, i) => ({
+          id: p.id,
+          name: p.nome,
+          color: ["#F9A8D4", "#FBCFE8", "#FDF2F8"][i % 3] // Alternate pink colors
+        }));
+        
+        // If we have less than 8 prizes, we duplicate them to fill the wheel visually
+        const filledPrizes = [];
+        let i = 0;
+        while (filledPrizes.length < 8) {
+          filledPrizes.push({ ...mappedPrizes[i % mappedPrizes.length], vizId: filledPrizes.length });
+          i++;
+        }
+        setPrizes(filledPrizes);
+      }
+    }
+    loadData();
+  }, []);
 
   const handleSpin = () => {
     if (girosDisponiveis <= 0 || isSpinning) return;
@@ -117,21 +148,48 @@ export default function GiroCuponsPage() {
     setIsSpinning(true);
     setPrizeWon(null);
 
-    // MOCK Backend prize calculation
-    const targetPrizeIndex = Math.floor(Math.random() * PRIZES.length);
-    const sliceAngle = 360 / PRIZES.length;
-    const targetAngle = 360 - (targetPrizeIndex * sliceAngle);
-    
-    // 5 full spins + target angle
-    const totalRotation = rotation + (360 * 5) + targetAngle - (rotation % 360);
-    setRotation(totalRotation);
+    // MOCK Backend prize calculation (REMOVED)
+    // Now hitting the real API endpoint
+    const spinAndSave = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setIsSpinning(false);
+        return;
+      }
 
-    setTimeout(() => {
-      setIsSpinning(false);
-      setPrizeWon(PRIZES[targetPrizeIndex].name);
-      setGirosDisponiveis(prev => prev - 1);
-      playWinSound();
-    }, 5000);
+      try {
+        const res = await fetch('/api/cupons/giro', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: session.user.id })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Erro ao girar a roleta");
+
+        const targetPrizeIndex = prizes.findIndex(c => c.id === data.premioId);
+        if (targetPrizeIndex === -1) throw new Error("Prêmio não encontrado na roleta");
+
+        const sliceAngle = 360 / prizes.length;
+        const targetAngle = 360 - (targetPrizeIndex * sliceAngle);
+        
+        // 5 full spins + target angle
+        const totalRotation = rotation + (360 * 5) + targetAngle - (rotation % 360);
+        setRotation(totalRotation);
+
+        setTimeout(() => {
+          setIsSpinning(false);
+          setPrizeWon(prizes[targetPrizeIndex].name);
+          setGirosDisponiveis(prev => prev - 1);
+          playWinSound();
+        }, 5000);
+      } catch (err: any) {
+        alert(err.message);
+        setIsSpinning(false);
+      }
+    };
+
+    spinAndSave();
   };
 
   return (
@@ -172,13 +230,13 @@ export default function GiroCuponsPage() {
             <div 
               className="absolute inset-0" 
               style={{
-                background: `conic-gradient(${PRIZES.map((p, i) => `${p.color} ${i * 45}deg ${(i+1) * 45}deg`).join(', ')})`,
+                background: `conic-gradient(${prizes.map((p, i) => `${p.color} ${i * 45}deg ${(i+1) * 45}deg`).join(', ')})`,
                 transform: 'rotate(-22.5deg)'
               }}
             />
 
             {/* Separator Lines */}
-            {PRIZES.map((_, i) => (
+            {prizes.map((_, i) => (
               <div 
                 key={`line-${i}`}
                 className="absolute top-1/2 left-1/2 w-1/2 h-[2px] bg-white/40 origin-left -mt-[1px] z-0"
@@ -187,9 +245,9 @@ export default function GiroCuponsPage() {
             ))}
 
             {/* Texts */}
-            {PRIZES.map((prize, i) => (
+            {prizes.map((prize, i) => (
               <div 
-                key={prize.id}
+                key={prize.vizId || prize.id}
                 className="absolute top-1/2 left-1/2 w-[45%] h-12 -mt-6 z-10 origin-left"
                 style={{
                   transform: `rotate(${i * 45 - 90}deg)`,

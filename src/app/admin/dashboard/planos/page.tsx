@@ -7,10 +7,10 @@ import { FeedbackModal, translateError } from "../../../../components/FeedbackMo
 
 export default function AdminPlanosPage() {
   const [modalEditOpen, setModalEditOpen] = useState(false);
-  const [expandirOpcoes, setExpandirOpcoes] = useState(false);
+  const [expandidoId, setExpandidoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [planoAtual, setPlanoAtual] = useState<any>(null);
+  const [planos, setPlanos] = useState<any[]>([]);
   const [editForm, setEditForm] = useState<any>(null);
 
   // Feedback State
@@ -20,54 +20,68 @@ export default function AdminPlanosPage() {
 
   const formatBRL = (val: number) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const loadPlano = async () => {
+  const loadPlanos = async () => {
     setLoading(true);
-    // Para simplificar a demonstração, puxaremos o primeiro plano "Club de Crédito"
-    const { data: planoData } = await supabase.from('planos').select('*').limit(1).single();
-    if (planoData) {
-      const { data: opcoesData } = await supabase.from('plano_opcoes').select('*').eq('plano_id', planoData.id).order('valor', { ascending: true });
-      const planoMontado = {
-        id: planoData.id,
-        nome: planoData.nome,
-        descricao: planoData.descricao,
-        status: planoData.status,
-        opcoes: opcoesData || []
-      };
-      setPlanoAtual(planoMontado);
-      setEditForm(planoMontado);
+    const { data: planosData } = await supabase.from('planos').select('*').order('created_at', { ascending: true });
+    if (planosData) {
+      const { data: opcoesData } = await supabase.from('plano_opcoes').select('*').order('valor', { ascending: true });
+      
+      const planosMontados = planosData.map(p => ({
+        id: p.id,
+        nome: p.nome,
+        descricao: p.descricao,
+        status: p.status,
+        opcoes: opcoesData ? opcoesData.filter(op => op.plano_id === p.id) : []
+      }));
+      setPlanos(planosMontados);
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    loadPlano();
+    loadPlanos();
   }, []);
 
   const handleSave = async () => {
     if (!editForm) return;
     
-    // Atualizar Plano Principal
-    const { error: planoError } = await supabase.from('planos').update({
-      nome: editForm.nome,
-      descricao: editForm.descricao,
-      status: editForm.status
-    }).eq('id', editForm.id);
+    let currentPlanoId = editForm.id;
 
-    if (planoError) {
-      setFeedback({ isOpen: true, type: 'error', title: 'Erro', message: translateError(planoError.message) });
-      return;
-    }
+    if (currentPlanoId) {
+      // Atualizar Plano Principal
+      const { error: planoError } = await supabase.from('planos').update({
+        nome: editForm.nome,
+        descricao: editForm.descricao,
+        status: editForm.status
+      }).eq('id', currentPlanoId);
 
-    // Para atualizar opções, removemos as antigas e inserimos as novas
-    // (Em um ambiente de produção pesado, faríamos upsert, mas como são poucas e para simplificar:)
-    const { error: deleteError } = await supabase.from('plano_opcoes').delete().eq('plano_id', editForm.id);
-    if (deleteError) {
-      setFeedback({ isOpen: true, type: 'error', title: 'Erro', message: translateError(deleteError.message) });
-      return;
+      if (planoError) {
+        setFeedback({ isOpen: true, type: 'error', title: 'Erro', message: translateError(planoError.message) });
+        return;
+      }
+
+      const { error: deleteError } = await supabase.from('plano_opcoes').delete().eq('plano_id', currentPlanoId);
+      if (deleteError) {
+        setFeedback({ isOpen: true, type: 'error', title: 'Erro', message: translateError(deleteError.message) });
+        return;
+      }
+    } else {
+      // Criar Novo Plano Principal
+      const { data: newPlano, error: insertPlanoError } = await supabase.from('planos').insert([{
+        nome: editForm.nome,
+        descricao: editForm.descricao,
+        status: editForm.status
+      }]).select().single();
+
+      if (insertPlanoError || !newPlano) {
+        setFeedback({ isOpen: true, type: 'error', title: 'Erro', message: translateError(insertPlanoError?.message || 'Erro ao criar plano') });
+        return;
+      }
+      currentPlanoId = newPlano.id;
     }
     
     const novasOpcoes = editForm.opcoes.map((op: any) => ({
-      plano_id: editForm.id,
+      plano_id: currentPlanoId,
       valor: op.valor,
       desconto: op.desconto,
       prioridade: op.prioridade,
@@ -83,9 +97,31 @@ export default function AdminPlanosPage() {
       }
     }
 
-    setFeedback({ isOpen: true, type: 'success', title: 'Sucesso', message: 'Plano atualizado com sucesso!' });
-    await loadPlano();
+    setFeedback({ isOpen: true, type: 'success', title: 'Sucesso', message: editForm.id ? 'Plano atualizado com sucesso!' : 'Plano criado com sucesso!' });
+    await loadPlanos();
     setModalEditOpen(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este plano? Esta ação apagará todas as opções de valores.")) return;
+    
+    const { error } = await supabase.from('planos').delete().eq('id', id);
+    if (error) {
+      setFeedback({ isOpen: true, type: 'error', title: 'Erro', message: translateError(error.message) });
+    } else {
+      setFeedback({ isOpen: true, type: 'success', title: 'Sucesso', message: 'Plano excluído com sucesso!' });
+      await loadPlanos();
+    }
+  };
+
+  const handleCreateNew = () => {
+    setEditForm({
+      nome: "",
+      descricao: "",
+      status: "Ativo",
+      opcoes: []
+    });
+    setModalEditOpen(true);
   };
 
   const updateOpcao = (id: any, key: string, value: any) => {
@@ -109,8 +145,8 @@ export default function AdminPlanosPage() {
     });
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-500 font-bold">Carregando plano atual...</div>;
-  if (!planoAtual) return <div className="p-8 text-center text-gray-500 font-bold">Nenhum plano encontrado.</div>;
+  if (loading) return <div className="p-8 text-center text-gray-500 font-bold">Carregando planos...</div>;
+  if (planos.length === 0) return <div className="p-8 text-center text-gray-500 font-bold">Nenhum plano encontrado.</div>;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -129,76 +165,86 @@ export default function AdminPlanosPage() {
           <p className="text-gray-500 font-medium mt-1">Crie, edite ou remova os planos de assinatura do sistema.</p>
         </div>
         
-        <button className="flex items-center gap-2 bg-[#ff1493] hover:bg-[#e91e63] text-white px-5 py-3 rounded-xl font-bold text-sm shadow-[0_8px_20px_-6px_rgba(255,20,147,0.5)] transition-all">
+        <button 
+          onClick={handleCreateNew}
+          className="flex items-center gap-2 bg-[#ff1493] hover:bg-[#e91e63] text-white px-5 py-3 rounded-xl font-bold text-sm shadow-[0_8px_20px_-6px_rgba(255,20,147,0.5)] transition-all"
+        >
           <Plus size={18} />
           Criar Novo Plano
         </button>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Card do Plano */}
-        <div className="bg-white rounded-[32px] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col relative overflow-hidden group transition-all hover:shadow-[0_15px_40px_rgba(255,20,147,0.1)]">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[#ff1493]/5 rounded-bl-full pointer-events-none"></div>
-          
-          <div className="p-8 flex-1">
-            <div className="flex justify-between items-start mb-6 relative z-10">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-[#ff1493]/10 text-[#ff1493] rounded-2xl flex items-center justify-center shadow-sm">
-                  <Tag size={24} />
+        {planos.map(plano => {
+          const isExpanded = expandidoId === plano.id;
+          return (
+            <div key={plano.id} className="bg-white rounded-[32px] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100 flex flex-col relative overflow-hidden group transition-all hover:shadow-[0_15px_40px_rgba(255,20,147,0.1)]">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#ff1493]/5 rounded-bl-full pointer-events-none"></div>
+              
+              <div className="p-8 flex-1">
+                <div className="flex justify-between items-start mb-6 relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-[#ff1493]/10 text-[#ff1493] rounded-2xl flex items-center justify-center shadow-sm">
+                      <Tag size={24} />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-black text-gray-900">{plano.nome}</h2>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 mt-1 inline-block">
+                        {plano.status}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => { setEditForm(plano); setModalEditOpen(true); }}
+                      className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-900 rounded-xl transition-colors shadow-sm bg-gray-50"
+                      title="Editar Plano"
+                    >
+                      <Edit3 size={18} />
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(plano.id)}
+                      className="p-2.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-xl transition-colors shadow-sm bg-gray-50" title="Excluir Plano"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-2xl font-black text-gray-900">{planoAtual.nome}</h2>
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-700 mt-1 inline-block">
-                    {planoAtual.status}
-                  </span>
+
+                <p className="text-gray-500 font-medium mb-6 relative z-10">
+                  {plano.descricao}
+                </p>
+
+                <div className="border border-gray-100 rounded-2xl overflow-hidden relative z-10">
+                  <button 
+                    onClick={() => setExpandidoId(isExpanded ? null : plano.id)}
+                    className="w-full bg-gray-50/80 hover:bg-gray-100 p-4 flex items-center justify-between transition-colors text-gray-900 font-bold"
+                  >
+                    Opções de Valor ({plano.opcoes.length})
+                    <ChevronDown size={20} className={`text-gray-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                  <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden bg-white`}>
+                    <ul className="divide-y divide-gray-50">
+                      {plano.opcoes.map((opcao: any) => (
+                        <li key={opcao.id} className="p-4 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                          <div>
+                            <p className="font-black text-lg text-gray-900">{formatBRL(opcao.valor)}</p>
+                            <p className="text-xs text-[#ff1493] font-bold">{opcao.desconto} OFF nos estúdios</p>
+                          </div>
+                          {opcao.prioridade && (
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
+                              <CheckCircle2 size={14} /> Prioridade
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => { setEditForm(planoAtual); setModalEditOpen(true); }}
-                  className="p-2.5 text-gray-400 hover:text-white hover:bg-gray-900 rounded-xl transition-colors shadow-sm bg-gray-50"
-                  title="Editar Plano"
-                >
-                  <Edit3 size={18} />
-                </button>
-                <button className="p-2.5 text-gray-400 hover:text-white hover:bg-red-500 rounded-xl transition-colors shadow-sm bg-gray-50" title="Excluir Plano">
-                  <Trash2 size={18} />
-                </button>
               </div>
             </div>
-
-            <p className="text-gray-500 font-medium mb-6 relative z-10">
-              {planoAtual.descricao}
-            </p>
-
-            <div className="border border-gray-100 rounded-2xl overflow-hidden relative z-10">
-              <button 
-                onClick={() => setExpandirOpcoes(!expandirOpcoes)}
-                className="w-full bg-gray-50/80 hover:bg-gray-100 p-4 flex items-center justify-between transition-colors text-gray-900 font-bold"
-              >
-                Opções de Valor ({planoAtual.opcoes.length})
-                <ChevronDown size={20} className={`text-gray-400 transition-transform duration-300 ${expandirOpcoes ? 'rotate-180' : ''}`} />
-              </button>
-              <div className={`transition-all duration-300 ease-in-out ${expandirOpcoes ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden bg-white`}>
-                <ul className="divide-y divide-gray-50">
-                  {planoAtual.opcoes.map((opcao: any) => (
-                    <li key={opcao.id} className="p-4 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
-                      <div>
-                        <p className="font-black text-lg text-gray-900">{formatBRL(opcao.valor)}</p>
-                        <p className="text-xs text-[#ff1493] font-bold">{opcao.desconto} OFF nos estúdios</p>
-                      </div>
-                      {opcao.prioridade && (
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">
-                          <CheckCircle2 size={14} /> Prioridade
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       {/* Modal Lateral / Overlayer de Edição */}
@@ -208,7 +254,7 @@ export default function AdminPlanosPage() {
           
           <div className="w-full max-w-xl bg-white h-full shadow-2xl relative z-10 flex flex-col animate-in slide-in-from-right-8 duration-300">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <h2 className="text-xl font-black text-gray-900">Editar Plano</h2>
+              <h2 className="text-xl font-black text-gray-900">{editForm.id ? "Editar Plano" : "Novo Plano"}</h2>
               <button onClick={() => setModalEditOpen(false)} className="p-2 text-gray-400 hover:text-gray-900 bg-white rounded-lg shadow-sm">
                 <X size={20} />
               </button>

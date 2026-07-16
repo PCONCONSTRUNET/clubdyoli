@@ -7,14 +7,16 @@ import { createClient } from "@supabase/supabase-js";
 import { FeedbackModal, translateError } from "../../../../components/FeedbackModal";
 import { ConfirmModal } from "../../../../components/ConfirmModal";
 
-// Criar um cliente Supabase secundário que não persiste sessão para podermos cadastrar usuários sem deslogar o admin
+// Cliente temporário sem persistência de sessão — usado para criar novos usuários
+// sem sobrescrever a sessão autenticada do admin nos cookies.
 const adminAuthClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
   {
     auth: {
       autoRefreshToken: false,
-      persistSession: false,
+      persistSession: false,   // Não salva em localStorage nem cookies
+      detectSessionInUrl: false,
     },
   }
 );
@@ -173,21 +175,29 @@ export default function AdminAssinantesPage() {
     }
 
     setSavingAssinatura(true);
-    const { error } = await supabase.from('assinaturas').insert([{
-      user_id: newAssUserId,
-      plano_opcao_id: newAssPlanoId,
-      status: 'Ativa',
-      data_inicio: new Date(newAssDataInicio).toISOString(),
-      data_fim: newAssDataFim ? new Date(newAssDataFim).toISOString() : null
-    }]);
+    
+    try {
+      const res = await fetch('/api/admin/assinaturas/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: newAssUserId,
+          planoId: newAssPlanoId,
+          dataInicio: new Date(newAssDataInicio).toISOString(),
+          dataFim: newAssDataFim ? new Date(newAssDataFim).toISOString() : null
+        })
+      });
 
-    if (error) {
-      setFeedback({ isOpen: true, type: 'error', title: 'Erro ao criar', message: translateError(error.message) });
-    } else {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao salvar assinatura');
+
       setFeedback({ isOpen: true, type: 'success', title: 'Sucesso', message: 'Assinatura manual criada com sucesso!' });
       setNewAssinaturaModalOpen(false);
       fetchAssinaturas();
+    } catch (error: any) {
+      setFeedback({ isOpen: true, type: 'error', title: 'Erro ao criar', message: translateError(error.message) });
     }
+    
     setSavingAssinatura(false);
   };
 
@@ -208,37 +218,31 @@ export default function AdminAssinantesPage() {
     }
     const fakeEmail = `dyoli${cleanCpf}@gmail.com`;
 
-    // 1. Criar o Auth User usando o cliente adminAuthClient para não derrubar a sessão atual do Admin
-    const { data: authData, error: authError } = await adminAuthClient.auth.signUp({
-      email: fakeEmail,
-      password: newCliSenha,
-    });
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: fakeEmail,
+          password: newCliSenha,
+          nome: newCliNome,
+          telefone: newCliTelefone,
+          cpf: cleanCpf
+        })
+      });
 
-    if (authError) {
-      setFeedback({ isOpen: true, type: 'error', title: 'Erro ao criar login', message: translateError(authError.message) });
-      setSavingClient(false);
-      return;
-    }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao criar cliente');
 
-    // 2. O trigger do banco já deve ter criado o profile. Vamos atualizá-lo com Nome e Telefone.
-    if (authData.user) {
-      const { error: profileError } = await supabase.from('profiles').update({
-        nome: newCliNome,
-        telefone: newCliTelefone,
-        cpf: cleanCpf
-      }).eq('id', authData.user.id);
-
-      if (profileError) {
-        setFeedback({ isOpen: true, type: 'error', title: 'Erro Parcial', message: 'Conta criada, mas erro ao salvar nome: ' + translateError(profileError.message) });
-      } else {
-        setFeedback({ isOpen: true, type: 'success', title: 'Sucesso', message: 'Cliente cadastrado com sucesso! Ele já pode logar com o CPF e senha.' });
-        setNewClientModalOpen(false);
-        setNewCliNome("");
-        setNewCliEmail("");
-        setNewCliTelefone("");
-        setNewCliSenha("");
-        fetchSupportData(); // Atualizar o combo de clientes
-      }
+      setFeedback({ isOpen: true, type: 'success', title: 'Sucesso', message: 'Cliente cadastrado com sucesso! Ele já pode logar com o CPF e senha.' });
+      setNewClientModalOpen(false);
+      setNewCliNome("");
+      setNewCliEmail("");
+      setNewCliTelefone("");
+      setNewCliSenha("");
+      fetchSupportData(); // Atualizar o combo de clientes
+    } catch (error: any) {
+      setFeedback({ isOpen: true, type: 'error', title: 'Erro ao criar', message: translateError(error.message) });
     }
     
     setSavingClient(false);

@@ -4,44 +4,89 @@ import { useState } from "react";
 import { Sparkles, Ticket } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
-const COUPONS = [
-  { id: 1, text: "5%", color: "#FBCFE8", type: 5 },
-  { id: 2, text: "7%", color: "#F9A8D4", type: 7 },
-  { id: 3, text: "10%", color: "#F472B6", type: 10 },
-  { id: 4, text: "15%", color: "#EC4899", type: 15 },
-  { id: 5, text: "5%", color: "#FBCFE8", type: 5 },
-  { id: 6, text: "7%", color: "#F9A8D4", type: 7 },
-];
-
 export default function RoletaCuponsModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [couponWon, setCouponWon] = useState<any>(null);
+  const [coupons, setCoupons] = useState<any[]>([
+    { id: 1, text: "5%", color: "#FBCFE8", type: 5 },
+    { id: 2, text: "7%", color: "#F9A8D4", type: 7 },
+    { id: 3, text: "10%", color: "#F472B6", type: 10 },
+    { id: 4, text: "15%", color: "#EC4899", type: 15 },
+    { id: 5, text: "5%", color: "#FBCFE8", type: 5 },
+    { id: 6, text: "7%", color: "#F9A8D4", type: 7 },
+  ]); // Fallback
+
+  useEffect(() => {
+    if (isOpen) {
+      async function loadPrizes() {
+        const { data: dbPrizes } = await supabase.from('premios_roleta').select('*').eq('ativo', true).order('peso', { ascending: false });
+        if (dbPrizes && dbPrizes.length > 0) {
+          const mappedPrizes = dbPrizes.map((p, i) => ({
+            id: p.id,
+            text: p.nome.replace(' OFF', '%'), 
+            color: ["#FBCFE8", "#F9A8D4", "#F472B6", "#EC4899"][i % 4],
+            type: parseInt(p.nome) || 0
+          }));
+          
+          const filledPrizes = [];
+          let i = 0;
+          while (filledPrizes.length < 6) {
+            filledPrizes.push({ ...mappedPrizes[i % mappedPrizes.length], vizId: filledPrizes.length });
+            i++;
+          }
+          setCoupons(filledPrizes);
+        }
+      }
+      loadPrizes();
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSpin = () => {
+  const handleSpin = async () => {
     if (isSpinning) return;
     
     setIsSpinning(true);
     setCouponWon(null);
 
-    // MOCK Backend prize calculation
-    const targetPrizeIndex = Math.floor(Math.random() * COUPONS.length);
-    const sliceAngle = 360 / COUPONS.length;
-    const targetAngle = 360 - (targetPrizeIndex * sliceAngle);
-    
-    // 5 full spins + target angle
-    const totalRotation = rotation + (360 * 5) + targetAngle - (rotation % 360);
-    setRotation(totalRotation);
-
-    setTimeout(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
       setIsSpinning(false);
-      const won = COUPONS[targetPrizeIndex];
-      setCouponWon(won);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/cupons/giro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: session.user.id })
+      });
       
-      // TODO: Salvar cupom na tabela cupons e user_cupons no backend
-    }, 5000); 
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao girar a roleta");
+
+      // Find index by id
+      const targetPrizeIndex = coupons.findIndex(c => c.id === data.premioId);
+      if (targetPrizeIndex === -1) throw new Error("Prêmio não encontrado na roleta");
+
+      const sliceAngle = 360 / coupons.length;
+      const targetAngle = 360 - (targetPrizeIndex * sliceAngle);
+      
+      // 5 full spins + target angle
+      const totalRotation = rotation + (360 * 5) + targetAngle - (rotation % 360);
+      setRotation(totalRotation);
+
+      setTimeout(() => {
+        setIsSpinning(false);
+        const won = coupons[targetPrizeIndex];
+        setCouponWon(won);
+      }, 5000); 
+
+    } catch (error: any) {
+      alert(error.message);
+      setIsSpinning(false);
+    }
   };
 
   return (
@@ -76,9 +121,9 @@ export default function RoletaCuponsModal({ isOpen, onClose }: { isOpen: boolean
               transition: isSpinning ? "transform 5s cubic-bezier(0.25, 0.1, 0.2, 1)" : "none",
             }}
           >
-            {COUPONS.map((prize, i) => {
-              const rotationAngle = i * (360 / COUPONS.length);
-              const skewAngle = 90 - (360 / COUPONS.length); // 90 - 60 = 30
+            {coupons.map((prize, i) => {
+              const rotationAngle = i * (360 / coupons.length);
+              const skewAngle = 90 - (360 / coupons.length); // 90 - 60 = 30
               return (
                 <div 
                   key={i}
@@ -91,7 +136,7 @@ export default function RoletaCuponsModal({ isOpen, onClose }: { isOpen: boolean
                   <div 
                     className="absolute text-sm font-black text-white w-full text-center px-4"
                     style={{
-                      transform: `skewY(${skewAngle}deg) rotate(${180/COUPONS.length}deg) translate(20px, 40px)`,
+                      transform: `skewY(${skewAngle}deg) rotate(${180/coupons.length}deg) translate(20px, 40px)`,
                       textShadow: '0 1px 3px rgba(0,0,0,0.2)'
                     }}
                   >

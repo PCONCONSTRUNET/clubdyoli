@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle2, Gift, Star, Info, Sparkles, Coins } from "luci
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
+import CheckoutModal, { DadosCheckout } from "../../../components/CheckoutModal";
 
 function PlanosContent() {
   const router = useRouter();
@@ -13,8 +14,10 @@ function PlanosContent() {
 
   const [planos, setPlanos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [assinandoId, setAssinandoId] = useState<string | null>(null);
-  const [assinandoTattoo, setAssinandoTattoo] = useState(false);
+
+  // Modal de checkout
+  const [planoSelecionado, setPlanoSelecionado] = useState<any | null>(null);
+  const [checkoutTipo, setCheckoutTipo] = useState<"credito" | "tattoo" | null>(null);
 
   useEffect(() => {
     async function fetchPlanos() {
@@ -48,41 +51,75 @@ function PlanosContent() {
     fetchPlanos();
   }, []);
 
-  const handleAssinar = async (plano: any) => {
-    setAssinandoId(plano.id);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { alert("Você precisa estar logado."); setAssinandoId(null); return; }
-    const userId = session.user.id;
-    try {
-      await supabase.from('assinaturas').insert([{ user_id: userId, plano_opcao_id: plano.id, status: 'Ativa' }]);
-      if (plano.cupom_porcentagem > 0) {
-        const codigoCupom = `VIP${plano.cupom_porcentagem}-${Math.random().toString(36).substring(2,6).toUpperCase()}`;
-        const dataValidade = new Date();
-        dataValidade.setDate(dataValidade.getDate() + plano.cupom_validade_dias);
-        const { data: cupomData, error: cupomError } = await supabase.from('cupons').insert([{
-          codigo: codigoCupom, porcentagem_desconto: plano.cupom_porcentagem,
-          validade: dataValidade.toLocaleDateString('pt-BR'), total_usos: 1, status: 'Ativo'
-        }]).select().single();
-        if (cupomData && !cupomError) {
-          await supabase.from('user_cupons').insert([{ user_id: userId, cupom_id: cupomData.id }]);
-        }
-      }
-      alert("Plano assinado com sucesso!");
-      router.push('/painel/cupons');
-    } catch { alert("Erro ao processar assinatura."); }
-    finally { setAssinandoId(null); }
+  // ── Abre o modal de checkout para plano de crédito ──
+  const handleAssinar = (plano: any) => {
+    setPlanoSelecionado(plano);
+    setCheckoutTipo("credito");
   };
 
-  const handleAssinarTattoo = async () => {
-    setAssinandoTattoo(true);
+  // ── Abre o modal de checkout para Clube Tattoo ──
+  const handleAssinarTattoo = () => {
+    setPlanoSelecionado({
+      id: "tattoo",
+      nome: "Clube Tattoo 🌸",
+      preco: "54,90",
+    });
+    setCheckoutTipo("tattoo");
+  };
+
+  // ── Confirma assinatura após checkout ──
+  const handleCheckoutConfirm = async (plano: any, dados: DadosCheckout) => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { alert("Você precisa estar logado."); setAssinandoTattoo(false); return; }
+    if (!session) {
+      alert("Você precisa estar logada.");
+      return;
+    }
+    const userId = session.user.id;
+
     try {
-      await supabase.from('profiles').update({ is_clube_tattoo: true, giros_disponiveis: 1 }).eq('id', session.user.id);
-      alert("Clube Tattoo assinado! Acesse seu perfil para ver seus benefícios.");
-      router.push('/painel/perfil');
-    } catch { alert("Erro ao processar assinatura."); }
-    finally { setAssinandoTattoo(false); }
+      if (checkoutTipo === "tattoo") {
+        const res = await fetch('/api/assinaturas/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            checkoutTipo: "tattoo",
+            preco: plano.preco || "54,90"
+          })
+        });
+
+        if (!res.ok) throw new Error("Falha ao atualizar perfil para tattoo");
+
+        setPlanoSelecionado(null);
+        setCheckoutTipo(null);
+        alert("🌸 Clube Tattoo assinado! Bem-vinda!");
+        router.push('/painel/perfil');
+
+        const res = await fetch('/api/assinaturas/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            planoId: plano.id,
+            checkoutTipo: "credito",
+            preco: plano.preco,
+            cupomPorcentagem: plano.cupom_porcentagem || 0,
+            cupomValidadeDias: plano.cupom_validade_dias || 30
+          })
+        });
+
+        if (!res.ok) throw new Error("Falha ao assinar plano");
+
+        setPlanoSelecionado(null);
+        setCheckoutTipo(null);
+        alert("✅ Plano assinado com sucesso!");
+        router.push('/painel/cupons');
+      }
+    } catch {
+      alert("Erro ao processar assinatura. Tente novamente.");
+      setPlanoSelecionado(null);
+      setCheckoutTipo(null);
+    }
   };
 
   return (
@@ -134,10 +171,9 @@ function PlanosContent() {
                 </div>
                 <button
                   onClick={handleAssinarTattoo}
-                  disabled={assinandoTattoo}
-                  className="w-full bg-gradient-to-r from-[#ff1493] to-[#ff4081] text-white py-4 rounded-2xl font-black text-lg shadow-xl shadow-pink-400/30 hover:scale-[1.02] transition-all duration-300 disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-[#ff1493] to-[#ff4081] text-white py-4 rounded-2xl font-black text-lg shadow-xl shadow-pink-400/30 hover:scale-[1.02] transition-all duration-300"
                 >
-                  {assinandoTattoo ? "Processando..." : "🌸 Quero o Clube Tattoo"}
+                  🌸 Quero o Clube Tattoo
                 </button>
               </div>
             </div>
@@ -192,10 +228,9 @@ function PlanosContent() {
                     </ul>
                     <button
                       onClick={() => handleAssinar(plano)}
-                      disabled={assinandoId === plano.id}
-                      className="w-full bg-gray-900 text-white py-2.5 sm:py-4 rounded-xl sm:rounded-2xl font-bold shadow-lg hover:bg-[#ff1493] transition-all duration-300 uppercase tracking-wider text-[10px] sm:text-sm disabled:opacity-50"
+                      className="w-full bg-gray-900 text-white py-2.5 sm:py-4 rounded-xl sm:rounded-2xl font-bold shadow-lg hover:bg-[#ff1493] transition-all duration-300 uppercase tracking-wider text-[10px] sm:text-sm"
                     >
-                      {assinandoId === plano.id ? "Assinando..." : "Assinar"}
+                      Assinar
                     </button>
                   </div>
                 </div>
@@ -207,6 +242,15 @@ function PlanosContent() {
             <p className="text-gray-600 font-medium leading-relaxed">Todo valor pago mensalmente vira <strong className="text-[#ff1493]">crédito acumulado</strong> para usar em procedimentos. Você ainda ganha descontos, participa de sorteios e tem prioridade na agenda nos planos maiores.</p>
           </div>
         </div>
+      )}
+
+      {/* ── Modal de Checkout ── */}
+      {planoSelecionado && (
+        <CheckoutModal
+          plano={planoSelecionado}
+          onClose={() => { setPlanoSelecionado(null); setCheckoutTipo(null); }}
+          onConfirm={handleCheckoutConfirm}
+        />
       )}
     </main>
   );

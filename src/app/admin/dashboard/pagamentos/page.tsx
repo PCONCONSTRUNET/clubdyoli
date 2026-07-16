@@ -1,12 +1,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, Filter, Download, ArrowUpRight, ArrowDownRight, Clock } from "lucide-react";
+import { Calendar, Filter, Download, ArrowUpRight, ArrowDownRight, Clock, Calendar as CalendarIcon } from "lucide-react";
 import { supabase } from "../../../../lib/supabase";
+import { DateRangePicker } from "../../../../components/DateRangePicker";
 
 export default function AdminPagamentosPage() {
+  const [allPagamentos, setAllPagamentos] = useState<any[]>([]);
   const [pagamentos, setPagamentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const [timeFilter, setTimeFilter] = useState<'hoje' | 'semana' | 'personalizado'>('semana');
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [showCalendar, setShowCalendar] = useState(false);
 
   useEffect(() => {
     async function fetchPagamentos() {
@@ -30,15 +37,47 @@ export default function AdminPagamentosPage() {
             valor: `R$ ${p.valor}`,
             data: dataObj.toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', year: 'numeric'}),
             hora: dataObj.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}),
-            status: p.status
+            status: p.status,
+            data_raw: p.data_pagamento // Guardar a data original para filtro
           };
         });
-        setPagamentos(formated);
+        setAllPagamentos(formated);
       }
       setLoading(false);
     }
     fetchPagamentos();
   }, []);
+
+  useEffect(() => {
+    // Filtrar dados quando os filtros mudam
+    const hojeDate = new Date();
+    let inicio = new Date();
+    let fim = new Date();
+    
+    if (timeFilter === 'hoje') {
+      inicio.setHours(0,0,0,0);
+      fim.setHours(23,59,59,999);
+    } else if (timeFilter === 'semana') {
+      inicio.setDate(hojeDate.getDate() - 6);
+      inicio.setHours(0,0,0,0);
+    } else if (timeFilter === 'personalizado' && startDate && endDate) {
+      inicio = new Date(startDate);
+      inicio.setHours(0,0,0,0);
+      fim = new Date(endDate);
+      fim.setHours(23,59,59,999);
+    } else {
+      // Padrão se não tiver datas
+      inicio.setDate(hojeDate.getDate() - 6);
+      inicio.setHours(0,0,0,0);
+    }
+
+    const filtrados = allPagamentos.filter(p => {
+      const pd = new Date(p.data_raw);
+      return pd >= inicio && pd <= fim;
+    });
+
+    setPagamentos(filtrados);
+  }, [allPagamentos, timeFilter, startDate, endDate]);
 
   return (
     <div className="space-y-8">
@@ -48,11 +87,48 @@ export default function AdminPagamentosPage() {
           <p className="text-gray-500 font-medium mt-1">Controle de recebimentos e histórico financeiro.</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center bg-white border border-gray-200 rounded-xl p-1 shadow-sm">
-            <button className="px-4 py-2 bg-gray-100 text-gray-900 rounded-lg font-bold text-sm">Hoje</button>
-            <button className="px-4 py-2 text-gray-500 hover:text-gray-900 rounded-lg font-bold text-sm">7 Dias</button>
-            <button className="px-4 py-2 text-gray-500 hover:text-gray-900 rounded-lg font-bold text-sm">Mês</button>
+            <button 
+              onClick={() => setTimeFilter('hoje')}
+              className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${timeFilter === 'hoje' ? 'bg-[#ff1493] text-white' : 'bg-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+            >
+              Hoje
+            </button>
+            <button 
+              onClick={() => setTimeFilter('semana')}
+              className={`px-4 py-2 rounded-lg font-bold text-sm transition-colors ${timeFilter === 'semana' ? 'bg-[#ff1493] text-white' : 'bg-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+            >
+              7 Dias
+            </button>
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  setTimeFilter('personalizado');
+                  setShowCalendar(!showCalendar);
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-colors ${timeFilter === 'personalizado' ? 'bg-[#ff1493] text-white' : 'bg-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+              >
+                <CalendarIcon size={16} /> Personalizado
+              </button>
+              
+              {showCalendar && timeFilter === 'personalizado' && (
+                <div className="absolute right-0 mt-2 p-4 bg-white rounded-2xl shadow-xl border border-gray-100 z-20 flex flex-col gap-3">
+                  <DateRangePicker 
+                    startDate={startDate} 
+                    endDate={endDate} 
+                    onStartChange={setStartDate} 
+                    onEndChange={setEndDate} 
+                  />
+                  <button 
+                    onClick={() => setShowCalendar(false)}
+                    className="w-full mt-2 bg-gray-900 text-white rounded-lg px-3 py-2 text-sm font-bold hover:bg-gray-800 transition-colors"
+                  >
+                    Aplicar Datas
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           <button className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold text-sm shadow-sm hover:bg-gray-50 transition-colors">
             <Download size={16} />
@@ -118,7 +194,7 @@ export default function AdminPagamentosPage() {
         </div>
         
         <div className="p-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500 bg-gray-50/50">
-          <span>Mostrando 5 de 1.248 pagamentos</span>
+          <span>Mostrando {pagamentos.length} pagamentos</span>
           <div className="flex gap-1">
             <button className="px-3 py-1 border border-gray-200 rounded-md bg-white disabled:opacity-50" disabled>Ant</button>
             <button className="px-3 py-1 border border-gray-200 rounded-md bg-white hover:bg-gray-50">Próx</button>

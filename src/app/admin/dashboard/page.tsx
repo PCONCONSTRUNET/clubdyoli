@@ -1,22 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, CreditCard, TrendingUp, Activity, ChevronDown } from "lucide-react";
+import { Users, CreditCard, TrendingUp, Activity, ChevronDown, Calendar as CalendarIcon } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { DateRangePicker } from "../../../components/DateRangePicker";
 
 export default function AdminDashboardPage() {
   const [expandirClub, setExpandirClub] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [chartData, setChartData] = useState([
-    { name: 'Jan', receita: 1200 },
-    { name: 'Fev', receita: 2100 },
-    { name: 'Mar', receita: 1800 },
-    { name: 'Abr', receita: 3200 },
-    { name: 'Mai', receita: 4500 },
-    { name: 'Jun', receita: 5800 },
-  ]);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [timeFilter, setTimeFilter] = useState<'hoje' | 'semana' | 'personalizado'>('semana');
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const [metricas, setMetricas] = useState([
     { titulo: "Clientes Ativos", valor: "0", variacao: "0%", icon: Users, cor: "bg-blue-500" },
@@ -26,18 +24,75 @@ export default function AdminDashboardPage() {
 
   const [totalClub, setTotalClub] = useState(0);
   const [statusPlanos, setStatusPlanos] = useState<any[]>([]);
+  const [planoMaisVendido, setPlanoMaisVendido] = useState({ nome: "Nenhum plano (Geral)", porcentagem: "0%", totalAtivos: "0 assinantes" });
 
   useEffect(() => {
     async function loadDashboard() {
-      // 1. Clientes Ativos (Profiles com role = client)
+      // 1. Clientes Ativos
       const { count: countClientes } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'client');
       
       // 2. Assinaturas Ativas
       const { count: countAssinaturas } = await supabase.from('assinaturas').select('*', { count: 'exact', head: true }).eq('status', 'Ativa');
 
-      // 3. Receita Total (Soma de pagamentos aprovados)
-      const { data: pagamentos } = await supabase.from('pagamentos').select('valor').eq('status', 'Aprovado');
+      // 3. Receita Total (Soma de pagamentos aprovados) + Gráfico de 6 meses
+      const { data: pagamentos } = await supabase.from('pagamentos').select('valor, data_pagamento').eq('status', 'Aprovado');
       const receita = pagamentos?.reduce((acc, curr) => acc + Number(curr.valor), 0) || 0;
+
+      // Montar gráfico com base no filtro
+      const hojeDate = new Date();
+      let inicio = new Date();
+      let fim = new Date();
+      
+      if (timeFilter === 'hoje') {
+        inicio.setHours(0,0,0,0);
+        fim.setHours(23,59,59,999);
+      } else if (timeFilter === 'semana') {
+        inicio.setDate(hojeDate.getDate() - 6);
+        inicio.setHours(0,0,0,0);
+      } else if (timeFilter === 'personalizado' && startDate && endDate) {
+        inicio = new Date(startDate);
+        inicio.setHours(0,0,0,0);
+        fim = new Date(endDate);
+        fim.setHours(23,59,59,999);
+      } else {
+        // Se personalizado mas sem datas, mostra últimos 7 dias como padrão
+        inicio.setDate(hojeDate.getDate() - 6);
+        inicio.setHours(0,0,0,0);
+      }
+
+      // Filtrar pagamentos
+      const pagamentosFiltrados = pagamentos?.filter(p => {
+        const pd = new Date(p.data_pagamento);
+        return pd >= inicio && pd <= fim;
+      }) || [];
+
+      const historico: Record<string, number> = {};
+      
+      if (timeFilter === 'hoje') {
+        // Agrupar por hora
+        for (let i = 0; i <= 23; i++) {
+          historico[`${i.toString().padStart(2, '0')}:00`] = 0;
+        }
+        pagamentosFiltrados.forEach(p => {
+          const pd = new Date(p.data_pagamento);
+          const k = `${pd.getHours().toString().padStart(2, '0')}:00`;
+          if (historico[k] !== undefined) historico[k] += Number(p.valor);
+        });
+      } else {
+        // Agrupar por dia
+        let curr = new Date(inicio);
+        while (curr <= fim) {
+          historico[curr.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })] = 0;
+          curr.setDate(curr.getDate() + 1);
+        }
+        pagamentosFiltrados.forEach(p => {
+          const pd = new Date(p.data_pagamento);
+          const k = pd.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          if (historico[k] !== undefined) historico[k] += Number(p.valor);
+        });
+      }
+      
+      setChartData(Object.keys(historico).map(k => ({ name: k, receita: historico[k] })));
 
       setMetricas([
         { titulo: "Clientes Cadastrados", valor: String(countClientes || 0), variacao: "Geral", icon: Users, cor: "bg-blue-500" },
@@ -47,31 +102,42 @@ export default function AdminDashboardPage() {
 
       setTotalClub(countAssinaturas || 0);
 
-      // 4. Distribuição de Planos (Para simplificar, mostramos os planos disponíveis com 0 assinantes se não houver)
-      const { data: opcoes } = await supabase.from('plano_opcoes').select('*, assinaturas(id)');
+      // 4. Distribuição de Planos
+      const { data: opcoes } = await supabase.from('plano_opcoes').select('*, assinaturas(id, status), planos(nome)');
       if (opcoes) {
         const cores = ["bg-[#ff9a9e]", "bg-[#a1c4fd]", "bg-[#f6d365]", "bg-[#d4fc79]"];
+        let melhorPlano = { nome: "Nenhum (0)", ativos: -1 };
+
         const dist = opcoes.sort((a,b)=>a.valor - b.valor).map((op, idx) => {
           const ativos = op.assinaturas ? op.assinaturas.filter((a:any) => a.status === 'Ativa').length : 0;
+          const nomeStr = `${op.planos?.nome} (R$ ${op.valor})`;
+          
+          if (ativos > melhorPlano.ativos) {
+            melhorPlano = { nome: nomeStr, ativos };
+          }
+          
           return {
-            nome: `Opção R$ ${op.valor.toFixed(2).replace('.', ',')}`,
+            nome: nomeStr,
             ativos: ativos,
             cor: cores[idx % cores.length]
           };
         });
+        
         setStatusPlanos(dist);
+
+        if (melhorPlano.ativos > 0 && countAssinaturas) {
+          setPlanoMaisVendido({
+            nome: melhorPlano.nome,
+            porcentagem: `${Math.round((melhorPlano.ativos / countAssinaturas) * 100)}%`,
+            totalAtivos: `${melhorPlano.ativos} assinantes`
+          });
+        }
       }
 
       setLoading(false);
     }
     loadDashboard();
-  }, []);
-
-  const planoMaisVendido = {
-    nome: "Club de Crédito (Geral)",
-    porcentagem: totalClub > 0 ? "100%" : "0%",
-    totalAtivos: `${totalClub} assinantes`
-  };
+  }, [timeFilter, startDate, endDate]);
 
   if (loading) return <div className="p-8 text-center animate-pulse">Carregando métricas...</div>;
 
@@ -106,7 +172,53 @@ export default function AdminDashboardPage() {
 
       {/* Gráfico de Receita */}
       <div className="bg-white p-8 rounded-[32px] shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-gray-100">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Evolução de Receita (Estimativa)</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+          <h2 className="text-xl font-bold text-gray-900">Evolução de Receita</h2>
+          
+          <div className="flex items-center gap-2 flex-wrap">
+            <button 
+              onClick={() => setTimeFilter('hoje')}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${timeFilter === 'hoje' ? 'bg-[#ff1493] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              Hoje
+            </button>
+            <button 
+              onClick={() => setTimeFilter('semana')}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${timeFilter === 'semana' ? 'bg-[#ff1493] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              Últimos 7 dias
+            </button>
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  setTimeFilter('personalizado');
+                  setShowCalendar(!showCalendar);
+                }}
+                className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors ${timeFilter === 'personalizado' ? 'bg-[#ff1493] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+              >
+                <CalendarIcon size={16} /> Personalizado
+              </button>
+
+              {showCalendar && timeFilter === 'personalizado' && (
+                <div className="absolute right-0 mt-2 p-4 bg-white rounded-2xl shadow-xl border border-gray-100 z-20 flex flex-col gap-3">
+                  <DateRangePicker 
+                    startDate={startDate} 
+                    endDate={endDate} 
+                    onStartChange={setStartDate} 
+                    onEndChange={setEndDate} 
+                  />
+                  <button 
+                    onClick={() => setShowCalendar(false)}
+                    className="w-full mt-2 bg-gray-900 text-white rounded-lg px-3 py-2 text-sm font-bold hover:bg-gray-800 transition-colors"
+                  >
+                    Aplicar Datas
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>

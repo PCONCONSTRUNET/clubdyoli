@@ -24,6 +24,7 @@ export default function AdminCuponsPage() {
   const [isGlobal, setIsGlobal] = useState(false);
   const [planoId, setPlanoId] = useState("");
   const [status, setStatus] = useState("Ativo");
+  const [totalUsos, setTotalUsos] = useState<number>(1);
 
   // State for Send Cupom
   const [clientes, setClientes] = useState<any[]>([]);
@@ -88,6 +89,7 @@ export default function AdminCuponsPage() {
     setIsGlobal(false);
     setPlanoId("");
     setStatus("Ativo");
+    setTotalUsos(1);
     setModalOpen(true);
   };
 
@@ -100,6 +102,7 @@ export default function AdminCuponsPage() {
     setIsGlobal(cupom.is_global || false);
     setPlanoId(cupom.plano_id || "");
     setStatus(cupom.status);
+    setTotalUsos(cupom.total_usos ?? 1);
     
     if (cupom.validade) {
       const d = new Date(cupom.validade);
@@ -127,7 +130,8 @@ export default function AdminCuponsPage() {
       validade: new Date(validade).toISOString(),
       is_global: isGlobal,
       plano_id: isGlobal && planoId ? planoId : null,
-      status
+      status,
+      total_usos: totalUsos,
     };
 
     if (tipo === "Desconto") {
@@ -319,8 +323,10 @@ export default function AdminCuponsPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500 font-medium">Usos Totais</span>
-                    <span className="font-bold text-gray-700">{cupom.total_usos || 0} vezes</span>
+                    <span className="text-gray-500 font-medium">Usos disponíveis</span>
+                    <span className={`font-bold ${cupom.total_usos === 0 ? 'text-red-500' : 'text-gray-700'}`}>
+                      {cupom.total_usos ?? 1} {(cupom.total_usos ?? 1) === 1 ? 'uso' : 'usos'}
+                    </span>
                   </div>
                 </div>
 
@@ -443,6 +449,19 @@ export default function AdminCuponsPage() {
                   onChange={e => setValidade(e.target.value)}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-700 focus:outline-none focus:border-[#ff1493]"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Número de Usos Permitidos *</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={totalUsos}
+                  onChange={e => setTotalUsos(Math.max(1, Number(e.target.value)))}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-700 font-bold focus:outline-none focus:border-[#ff1493]"
+                  placeholder="Ex: 3"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Quantas vezes este cupom pode ser usado. Ao chegar a 0, expira automaticamente.</p>
               </div>
 
               <div>

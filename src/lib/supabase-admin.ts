@@ -1,12 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Cria uma instância separada para o admin, garantindo que o login 
-// não sobrescreva a sessão do cliente no mesmo navegador.
-export const supabaseAdmin = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storageKey: 'supabase-admin-auth', // Chave isolada
-  }
-});
+// Cliente admin usando cookies (sem localStorage).
+// Usa o mesmo cliente do usuário — o isolamento de sessão admin/client
+// é garantido pela verificação de role na tabela profiles.
+export const supabaseAdmin = createBrowserClient(supabaseUrl, supabaseAnonKey);

@@ -3,50 +3,171 @@
 import { useState, useEffect } from "react";
 import { Handshake, TrendingUp, Settings, Download, Activity, Code } from "lucide-react";
 import { supabase } from "../../../../lib/supabase";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function ParceriaPage() {
   const [percentual, setPercentual] = useState(15);
   const [isMounted, setIsMounted] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(true);
 
+  const [totalReceitas, setTotalReceitas] = useState(0);
+  const [semanas, setSemanas] = useState<any[]>([]);
+  const [transacoes, setTransacoes] = useState<any[]>([]);
+
   useEffect(() => {
     setIsMounted(true);
-    async function loadConfig() {
-      const { data, error } = await supabase.from('configuracoes').select('taxa_parceria').eq('id', 1).single();
-      if (data && !error) {
-        setPercentual(Number(data.taxa_parceria));
+    async function loadData() {
+      // 1. Configs
+      const { data: config } = await supabase.from('configuracoes').select('taxa_parceria').eq('id', 1).single();
+      const tx = config ? Number(config.taxa_parceria) : 15;
+      setPercentual(tx);
+
+      // 2. Transações
+      const { data: pags } = await supabase.from('pagamentos').select('id, valor, data_pagamento, status').eq('status', 'Aprovado').order('data_pagamento', { ascending: false });
+      
+      if (pags) {
+        // Últimas transações (limite de 10)
+        setTransacoes(pags.slice(0, 10).map(p => ({
+          id: p.id,
+          plano: 'Plano Assinado',
+          valor: p.valor
+        })));
+
+        // Receita da semana atual
+        const now = new Date();
+        const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay())); // Domingo
+        startOfWeek.setHours(0,0,0,0);
+        
+        const thisWeekPags = pags.filter(p => new Date(p.data_pagamento) >= startOfWeek);
+        const thisWeekRevenue = thisWeekPags.reduce((acc, curr) => acc + Number(curr.valor), 0);
+        setTotalReceitas(thisWeekRevenue);
+
+        // Agrupar por semana (últimas 4 semanas)
+        const semanasCalc = [];
+        for (let i = 3; i >= 0; i--) {
+          const start = new Date();
+          start.setDate(start.getDate() - start.getDay() - (i * 7));
+          start.setHours(0,0,0,0);
+          
+          const end = new Date(start);
+          end.setDate(end.getDate() + 7);
+
+          const rev = pags
+            .filter(p => {
+              const d = new Date(p.data_pagamento);
+              return d >= start && d < end;
+            })
+            .reduce((acc, curr) => acc + Number(curr.valor), 0);
+
+          semanasCalc.push({
+            semana: i === 0 ? "Atual" : `Sem -${i}`,
+            valor: rev,
+            repasse: (rev * tx) / 100
+          });
+        }
+        setSemanas(semanasCalc);
       } else {
-        setPercentual(15);
+        setSemanas([
+          { semana: "Sem -3", valor: 0, repasse: 0 },
+          { semana: "Sem -2", valor: 0, repasse: 0 },
+          { semana: "Sem -1", valor: 0, repasse: 0 },
+          { semana: "Atual", valor: 0, repasse: 0 }
+        ]);
       }
+
       setLoadingConfig(false);
     }
-    loadConfig();
+    loadData();
   }, []);
 
   const handleSavePercentual = async (val: number) => {
     await supabase.from('configuracoes').update({ taxa_parceria: val }).eq('id', 1);
   };
 
-  const totalReceitas = 36322.50; // Mock de receita da semana
+  const maxRepasse = Math.max(...semanas.map(m => m.repasse)) || 1;
   const valorDev = (totalReceitas * percentual) / 100;
 
-  // Mock de repasses semanais (para o gráfico)
-  const semanas = [
-    { semana: "Sem 1", valor: 8500, repasse: (8500 * percentual) / 100 },
-    { semana: "Sem 2", valor: 9200, repasse: (9200 * percentual) / 100 },
-    { semana: "Sem 3", valor: 8900, repasse: (8900 * percentual) / 100 },
-    { semana: "Sem 4", valor: 9722.50, repasse: (9722.50 * percentual) / 100 },
-  ];
-
-  const maxRepasse = Math.max(...semanas.map(m => m.repasse)) || 1;
-
-  const transacoes = [
-    { id: "PAY-9382", plano: "Club de Crédito R$ 149,90", valor: 149.90 },
-    { id: "PAY-9381", plano: "Club de Crédito R$ 79,99", valor: 79.99 },
-    { id: "PAY-9380", plano: "Club de Crédito R$ 249,90", valor: 249.90 },
-    { id: "PAY-9379", plano: "Club de Crédito R$ 299,90", valor: 299.90 },
-    { id: "PAY-9378", plano: "Club de Crédito R$ 149,90", valor: 149.90 },
-  ];
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    
+    // Configurações e Cores do Clube
+    const primaryColor: [number, number, number] = [255, 20, 147]; // #ff1493
+    const textDark: [number, number, number] = [17, 24, 39];
+    const textGray: [number, number, number] = [107, 114, 128];
+    
+    // Fonte custom
+    doc.setFont("helvetica", "bold");
+    
+    // Título
+    doc.setFontSize(22);
+    doc.setTextColor(...primaryColor);
+    doc.text("Clube Dyoli", 14, 20);
+    
+    doc.setFontSize(14);
+    doc.setTextColor(...textDark);
+    doc.text("Relatório de Parceria", 14, 28);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(...textGray);
+    doc.setFont("helvetica", "normal");
+    const dataAtual = new Date().toLocaleDateString('pt-BR');
+    doc.text(`Gerado em: ${dataAtual}`, 14, 34);
+    
+    doc.line(14, 38, 196, 38);
+    
+    // Resumo
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(...textDark);
+    doc.text("Resumo Semanal", 14, 48);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.text(`Taxa de Repasse Acordada: ${percentual}%`, 14, 56);
+    doc.text(`Faturamento Base (Semana): ${formatBRL(totalReceitas)}`, 14, 62);
+    
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...primaryColor);
+    doc.text(`Repasse Previsto: ${formatBRL(valorDev)}`, 14, 70);
+    
+    // Tabela das últimas semanas
+    doc.setFontSize(12);
+    doc.setTextColor(...textDark);
+    doc.text("Desempenho das Últimas Semanas", 14, 85);
+    
+    const tableSemanas = semanas.map(s => [s.semana, formatBRL(s.valor), formatBRL(s.repasse)]);
+    
+    (doc as any).autoTable({
+      startY: 90,
+      head: [['Semana', 'Faturamento', 'Repasse Estimado']],
+      body: tableSemanas,
+      headStyles: { fillColor: primaryColor, textColor: 255 },
+      styles: { fontSize: 10, cellPadding: 4 },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+    });
+    
+    // Tabela das últimas transações
+    const finalY = (doc as any).lastAutoTable.finalY + 15;
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(...textDark);
+    doc.text("Últimas Transações", 14, finalY);
+    
+    const tableTransacoes = transacoes.map(t => [t.id, t.plano, formatBRL(t.valor), formatBRL((t.valor * percentual) / 100)]);
+    
+    (doc as any).autoTable({
+      startY: finalY + 5,
+      head: [['Cód. Transação', 'Plano Vinculado', 'Valor Bruto', `Repasse (${percentual}%)`]],
+      body: tableTransacoes,
+      headStyles: { fillColor: primaryColor, textColor: 255 },
+      styles: { fontSize: 10, cellPadding: 4 },
+      alternateRowStyles: { fillColor: [249, 250, 251] },
+    });
+    
+    doc.save(`relatorio-parceria-${dataAtual.replace(/\\//g, '-')}.pdf`);
+  };
 
   // format currency
   const formatBRL = (val: number) => `R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -138,7 +259,10 @@ export default function ParceriaPage() {
               </div>
               <h2 className="text-xl font-bold text-gray-900">Evolução dos Repasses</h2>
             </div>
-            <button className="text-sm font-bold text-[#ff1493] bg-[#ff1493]/10 hover:bg-[#ff1493]/20 px-4 py-2 rounded-xl flex items-center gap-2 transition-colors">
+            <button 
+              onClick={handleDownloadPDF}
+              className="text-sm font-bold text-[#ff1493] bg-[#ff1493]/10 hover:bg-[#ff1493]/20 px-4 py-2 rounded-xl flex items-center gap-2 transition-colors"
+            >
               <Download size={16} /> Relatório Completo
             </button>
           </div>

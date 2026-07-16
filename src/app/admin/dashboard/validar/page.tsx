@@ -186,30 +186,82 @@ export default function AdminValidarCupomPage() {
   const executeDarBaixa = async () => {
     const { cupomId, isGlobal } = confirmModal;
     setConfirmModal({ isOpen: false, cupomId: "", isGlobal: false });
-    
     setLoading(true);
 
-    if (isGlobal) {
-      // Verifica se já existe na tabela user_cupons (pode ser que estivesse mas sem usado_em)
-      const { data: existing } = await supabase.from('user_cupons').select('id').eq('user_id', cliente.id).eq('cupom_id', cupomId);
-      
-      if (existing && existing.length > 0) {
-        await supabase.from('user_cupons').update({ usado_em: new Date().toISOString() }).eq('user_id', cliente.id).eq('cupom_id', cupomId);
-      } else {
-        await supabase.from('user_cupons').insert([{
-          user_id: cliente.id,
-          cupom_id: cupomId,
-          usado_em: new Date().toISOString()
-        }]);
-      }
+    // 1. Verificar quantos usos restam no cupom
+    const { data: cupomData } = await supabase
+      .from('cupons')
+      .select('total_usos')
+      .eq('id', cupomId)
+      .single();
+
+    const usosRestantes = cupomData?.total_usos ?? 1;
+
+    if (usosRestantes > 1) {
+      // ── Ainda tem mais usos: apenas decrementa, não expira ──
+      await supabase
+        .from('cupons')
+        .update({ total_usos: usosRestantes - 1 })
+        .eq('id', cupomId);
+
+      setFeedback({
+        isOpen: true,
+        type: 'success',
+        title: 'Uso Registrado!',
+        message: `Cupom validado com sucesso! Restam ainda ${usosRestantes - 1} uso(s) disponíveis.`
+      });
     } else {
-      // Cupom Exclusivo já está na tabela, só atualiza
-      await supabase.from('user_cupons').update({ usado_em: new Date().toISOString() }).eq('user_id', cliente.id).eq('cupom_id', cupomId);
+      // ── Último uso: expirar o cupom ──
+      if (isGlobal) {
+        // Cupom global: registrar uso do usuário e marcar cupom como Inativo
+        const { data: existing } = await supabase
+          .from('user_cupons')
+          .select('id')
+          .eq('user_id', cliente.id)
+          .eq('cupom_id', cupomId);
+
+        if (existing && existing.length > 0) {
+          await supabase
+            .from('user_cupons')
+            .update({ usado_em: new Date().toISOString() })
+            .eq('user_id', cliente.id)
+            .eq('cupom_id', cupomId);
+        } else {
+          await supabase.from('user_cupons').insert([{
+            user_id: cliente.id,
+            cupom_id: cupomId,
+            usado_em: new Date().toISOString()
+          }]);
+        }
+
+        // Marcar cupom como inativo pois esgotou os usos
+        await supabase
+          .from('cupons')
+          .update({ status: 'Inativo', total_usos: 0 })
+          .eq('id', cupomId);
+      } else {
+        // Cupom exclusivo: apenas marca a entrada do usuário como usada
+        await supabase
+          .from('user_cupons')
+          .update({ usado_em: new Date().toISOString() })
+          .eq('user_id', cliente.id)
+          .eq('cupom_id', cupomId);
+
+        await supabase
+          .from('cupons')
+          .update({ total_usos: 0 })
+          .eq('id', cupomId);
+      }
+
+      setFeedback({
+        isOpen: true,
+        type: 'success',
+        title: 'Baixa Concluída!',
+        message: 'Cupom validado e expirado — todos os usos foram consumidos.'
+      });
     }
 
-    setFeedback({ isOpen: true, type: 'success', title: 'Baixa Concluída', message: 'Cupom validado e marcado como usado com sucesso!' });
-    
-    // Recarregar os cupons do cliente
+    // Recarregar cupons do cliente
     if (cliente) {
       await fetchCuponsDoCliente(cliente.id);
     }
@@ -330,7 +382,11 @@ export default function AdminValidarCupomPage() {
               {cupons.map((cupom, idx) => {
                 const isExpired = cupom.validade ? new Date(cupom.validade) < new Date() : false;
                 const isUsed = !!cupom.usado_em;
-                const canUse = cupom.status === 'Ativo' && !isExpired && !isUsed;
+                const semUsos = (cupom.total_usos !== null && cupom.total_usos !== undefined) ? cupom.total_usos === 0 : false;
+                const canUse = cupom.status === 'Ativo' && !isExpired && !isUsed && !semUsos;
+                const usosLabel = (cupom.total_usos !== null && cupom.total_usos !== undefined && cupom.total_usos > 0)
+                  ? `${cupom.total_usos} uso(s) restante(s)`
+                  : null;
 
                 return (
                   <div key={idx} className={`bg-white p-6 rounded-[24px] border ${canUse ? 'border-gray-200 shadow-sm' : 'border-gray-100 opacity-60'} flex flex-col relative`}>
@@ -353,7 +409,15 @@ export default function AdminValidarCupomPage() {
 
                     <div className="mt-auto pt-4 flex items-center justify-between">
                       <span className="text-xs text-gray-500 font-medium">
-                        {isUsed ? `Usado em: ${new Date(cupom.usado_em).toLocaleDateString('pt-BR')}` : (isExpired ? 'Expirado' : (cupom.status !== 'Ativo' ? 'Pausado' : 'Disponível para uso'))}
+                        {isUsed
+                          ? `Usado em: ${new Date(cupom.usado_em).toLocaleDateString('pt-BR')}`
+                          : isExpired
+                            ? 'Expirado'
+                            : cupom.status !== 'Ativo'
+                              ? 'Pausado'
+                              : usosLabel
+                                ? <span className="text-emerald-600 font-bold">{usosLabel}</span>
+                                : 'Disponível para uso'}
                       </span>
                       
                       {canUse ? (
