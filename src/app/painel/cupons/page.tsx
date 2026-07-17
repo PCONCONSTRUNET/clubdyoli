@@ -104,6 +104,7 @@ export default function CuponsPage() {
     const subText = isPremio ? 'Resgate de Prêmio' : 'Desconto Especial';
     const validade = cupom.validade && cupom.validade !== "Sem validade" ? new Date(cupom.validade).toLocaleDateString('pt-BR') : 'Sem validade definida';
     const dateToday = new Date().toLocaleDateString('pt-BR');
+    const dateCreated = cupom.created_at ? new Date(cupom.created_at).toLocaleDateString('pt-BR') : null;
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -120,8 +121,8 @@ export default function CuponsPage() {
               * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
               .no-print { display: none !important; }
             }
-            .wrapper { width: 100%; max-width: 800px; padding: 40px; }
-            @media print { .wrapper { max-width: 100%; padding: 10mm; } }
+            .wrapper { width: 100%; max-width: 800px; padding: 40px; margin-top: 20px; }
+            @media print { .wrapper { max-width: 100%; padding: 10mm; margin-top: 0; } }
             
             .ticket { display: flex; width: 100%; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.15); color: white; position: relative; }
             .ticket.desconto { background: linear-gradient(135deg, #ff1493, #ff6b6b); }
@@ -147,9 +148,16 @@ export default function CuponsPage() {
             .code-box { background: rgba(0,0,0,0.2); padding: 10px 20px; border-radius: 8px; font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 2px; text-align: center; width: 100%; box-sizing: border-box;}
             
             .footer-text { text-align: center; margin-top: 40px; color: #64748b; font-size: 14px; line-height: 1.6; font-weight: 500; }
+
+            .close-btn { position: absolute; top: 20px; left: 20px; padding: 10px 20px; background: white; border: 1px solid #e2e8f0; border-radius: 20px; color: #334155; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); font-size: 14px; display: flex; align-items: center; gap: 8px; text-decoration: none; z-index: 10; font-family: 'Inter', sans-serif;}
+            .close-btn:hover { background: #f8fafc; }
           </style>
         </head>
         <body>
+          <button class="close-btn no-print" onclick="window.close()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            Voltar
+          </button>
           <div class="wrapper">
             <div class="ticket ${isPremio ? 'premio' : 'desconto'}">
               <div class="left">
@@ -172,7 +180,7 @@ export default function CuponsPage() {
             </div>
             <div class="footer-text">
               Apresente este documento impresso ou na tela do seu celular na recepção do estúdio.<br>
-              Emitido em ${dateToday}
+              Emitido em ${dateToday} ${dateCreated ? `| Criado/Ativado em ${dateCreated}` : ''}
             </div>
           </div>
           <script>

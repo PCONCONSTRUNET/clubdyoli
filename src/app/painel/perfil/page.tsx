@@ -149,7 +149,7 @@ export default function PerfilPage() {
     setTimeout(() => setFeedbackUso(f => ({ ...f, visivel: false })), 4000);
   };
 
-  const handleDownloadPDF = (titulo: string, tipo: string) => {
+  const handleDownloadPDF = (titulo: string, tipo: string, dataCriacao?: string) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     
@@ -158,17 +158,28 @@ export default function PerfilPage() {
         <head>
           <title>Dyoli Club - ${titulo}</title>
           <style>
-            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center; padding: 50px; background-color: #fff8fb; color: #333; }
-            .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(255,20,147,0.1); max-w: 500px; margin: 0 auto; border: 1px solid #ffb6c1; }
-            h1 { color: #ff1493; letter-spacing: 2px; margin-bottom: 5px; }
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; text-align: center; padding: 50px 20px; background-color: #fff8fb; color: #333; margin: 0; }
+            .container { background: white; padding: 40px 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(255,20,147,0.1); max-width: 500px; margin: 0 auto; border: 1px solid #ffb6c1; position: relative; margin-top: 40px; }
+            h1 { color: #ff1493; letter-spacing: 2px; margin-bottom: 5px; font-size: 24px; }
             .badge { background: #ff1493; color: white; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; text-transform: uppercase; display: inline-block; margin-bottom: 20px; }
-            .ticket { border: 2px dashed #ff1493; padding: 30px; margin: 20px 0; border-radius: 15px; background: #fff0f5; }
-            .ticket h2 { font-size: 36px; margin: 0; color: #ff1493; }
-            p { color: #666; line-height: 1.5; }
+            .ticket { border: 2px dashed #ff1493; padding: 30px 20px; margin: 20px 0; border-radius: 15px; background: #fff0f5; }
+            .ticket h2 { font-size: 28px; margin: 0; color: #ff1493; line-height: 1.2; }
+            p { color: #666; line-height: 1.5; font-size: 14px; }
             .footer { margin-top: 30px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px; }
+            .close-btn { position: absolute; top: 20px; left: 20px; padding: 10px 20px; background: white; border: 1px solid #ffb6c1; border-radius: 20px; color: #ff1493; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(255,20,147,0.1); font-size: 14px; display: flex; align-items: center; gap: 8px; text-decoration: none; z-index: 10; }
+            .close-btn:hover { background: #fff0f5; }
+            @media print {
+              .no-print { display: none !important; }
+              body { padding: 0; background-color: white; }
+              .container { margin-top: 0; border: none; box-shadow: none; }
+            }
           </style>
         </head>
         <body>
+          <button class="close-btn no-print" onclick="window.close()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            Voltar
+          </button>
           <div class="container">
             <h1>DYOLI CLUB</h1>
             <div class="badge">VOUCHER OFICIAL</div>
@@ -184,6 +195,7 @@ export default function PerfilPage() {
               Emitido para: ${nome}<br>
               CPF: ${cpf}<br>
               Data de emissão: ${new Date().toLocaleDateString('pt-BR')}
+              ${dataCriacao ? `<br>Data de ativação: ${dataCriacao}` : ''}
             </div>
           </div>
           <script>
@@ -677,7 +689,8 @@ export default function PerfilPage() {
                                   <button
                                     onClick={() => handleDownloadPDF(
                                       isTipo ? `Prêmio: ${cupom.valor_premio}` : `Cupom: ${cupom.porcentagem_desconto}% OFF`,
-                                      isTipo ? 'Prêmio' : 'Desconto'
+                                      isTipo ? 'Prêmio' : 'Desconto',
+                                      cupom.created_at ? new Date(cupom.created_at).toLocaleDateString('pt-BR') : undefined
                                     )}
                                     className="flex items-center gap-1.5 bg-white text-[#ff1493] text-xs font-bold px-3 py-2 rounded-xl hover:bg-pink-50 transition-colors"
                                   >
